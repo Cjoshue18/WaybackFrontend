@@ -68,12 +68,12 @@ export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
       {/* panel */}
       <div
         className="relative z-10 bg-white w-full"
-        style={{ borderBottom: '2px solid #c70fff', boxShadow: '0 8px 40px rgba(0,0,0,0.10)' }}
+        style={{ borderBottom: '2px solid #7c3aed', boxShadow: '0 8px 40px rgba(0,0,0,0.10)' }}
       >
         {/* search bar */}
         <div className="container mx-auto px-6" style={{ paddingTop: 24, paddingBottom: 0 }}>
           <form onSubmit={handleSubmit} className="flex items-center gap-4">
-            <Search style={{ width: 18, height: 18, flexShrink: 0, color: '#c70fff' }} />
+            <Search style={{ width: 18, height: 18, flexShrink: 0, color: '#7c3aed' }} />
 
             <input
               ref={inputRef}
@@ -108,7 +108,7 @@ export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
         <div className="container mx-auto px-6 py-6">
           <p
             className="mb-4 uppercase"
-            style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', color: '#c70fff' }}
+            style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', color: '#7c3aed' }}
           >
             {query.trim() ? 'Resultados' : 'Categorías'}
           </p>
@@ -119,7 +119,7 @@ export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                 <button
                   key={cat}
                   onClick={() => goToCategory(cat)}
-                  className="px-4 py-2 border border-gray-200 text-gray-600 uppercase transition-all hover:border-[#c70fff] hover:text-[#c70fff] hover:bg-[rgba(199,15,255,0.05)]"
+                  className="px-4 py-2 border border-gray-200 text-gray-600 uppercase transition-all hover:border-[#7c3aed] hover:text-[#7c3aed] hover:bg-[rgba(124,58,237,0.05)]"
                   style={{ fontSize: 11, letterSpacing: '0.08em', fontWeight: 600 }}
                 >
                   {cat}

@@ -88,9 +88,9 @@ export function AdminProducts() {
         <button
           onClick={openAdd}
           className="flex items-center gap-2 px-4 py-2.5 text-white transition-colors"
-          style={{ background: '#c70fff', fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#a800d9'; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#c70fff'; }}
+          style={{ background: '#7c3aed', fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#6d28d9'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#7c3aed'; }}
         >
           <Plus style={{ width: 14, height: 14 }} />
           Agregar
@@ -139,7 +139,7 @@ export function AdminProducts() {
                   <td className="px-5 py-3.5" style={{ fontSize: 12, color: '#374151' }}>{p.sexo}</td>
                   <td className="px-5 py-3.5">
                     {p.pro_descuento > 0 ? (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#c70fff', background: 'rgba(199,15,255,0.08)', padding: '2px 8px' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed', background: 'rgba(124,58,237,0.08)', padding: '2px 8px' }}>
                         -{p.pro_descuento}%
                       </span>
                     ) : <span style={{ fontSize: 12, color: '#d1d5db' }}>—</span>}
@@ -147,7 +147,7 @@ export function AdminProducts() {
                   <td className="px-5 py-3.5" style={{ fontSize: 12, color: '#9ca3af' }}>{p.pro_fecha_creacion}</td>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2">
-                      <button onClick={() => openEdit(p)} className="p-1.5 text-gray-400 hover:text-[#c70fff] hover:bg-[rgba(199,15,255,0.05)] transition-colors">
+                      <button onClick={() => openEdit(p)} className="p-1.5 text-gray-400 hover:text-[#7c3aed] hover:bg-[rgba(124,58,237,0.05)] transition-colors">
                         <Edit2 style={{ width: 13, height: 13 }} />
                       </button>
                       <button onClick={() => setDeleteId(p.pro_id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
@@ -224,7 +224,7 @@ export function AdminProducts() {
                 <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-2.5 border border-gray-200 text-gray-600 hover:border-gray-400 transition-colors" style={{ fontSize: 12, fontWeight: 600 }}>
                   Cancelar
                 </button>
-                <button type="submit" className="flex-1 py-2.5 text-white transition-colors" style={{ background: '#c70fff', fontSize: 12, fontWeight: 700 }}>
+                <button type="submit" className="flex-1 py-2.5 text-white transition-colors" style={{ background: '#7c3aed', fontSize: 12, fontWeight: 700 }}>
                   {editing ? 'Guardar cambios' : 'Crear producto'}
                 </button>
               </div>
@@ -248,7 +248,7 @@ export function AdminProducts() {
         </div>
       )}
 
-      <style>{`.form-input { width: 100%; padding: 8px 12px; border: 1px solid #e5e7eb; background: #fafafa; font-size: 13px; color: #111; outline: none; } .form-input:focus { border-color: #c70fff; background: #fff; }`}</style>
+      <style>{`.form-input { width: 100%; padding: 8px 12px; border: 1px solid #e5e7eb; background: #fafafa; font-size: 13px; color: #111; outline: none; } .form-input:focus { border-color: #7c3aed; background: #fff; }`}</style>
     </div>
   );
 }

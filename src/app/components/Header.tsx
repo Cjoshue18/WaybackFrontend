@@ -75,12 +75,12 @@ export function Header() {
                   onClick={handleUserClick}
                   className="p-2.5 hover:bg-gray-50 transition-colors relative"
                   title={user ? user.name : 'Mi cuenta'}
-                  style={{ color: user ? '#c70fff' : '#6b7280' }}
+                  style={{ color: user ? '#7c3aed' : '#6b7280' }}
                 >
                   {user ? (
                     <div
                       className="flex items-center justify-center"
-                      style={{ width: 22, height: 22, background: '#c70fff', borderRadius: '50%' }}
+                      style={{ width: 22, height: 22, background: '#7c3aed', borderRadius: '50%' }}
                     >
                       <span style={{ fontSize: 10, fontWeight: 700, color: '#fff' }}>
                         {user.name.charAt(0).toUpperCase()}
@@ -106,10 +106,10 @@ export function Header() {
                       <button
                         onClick={() => { navigate('/admin'); setIsUserMenuOpen(false); }}
                         className="flex items-center gap-2.5 w-full px-4 py-2.5 text-left hover:bg-gray-50 transition-colors"
-                        onMouseEnter={(e) => { (e.currentTarget.querySelector('span') as HTMLElement).style.color = '#c70fff'; }}
+                        onMouseEnter={(e) => { (e.currentTarget.querySelector('span') as HTMLElement).style.color = '#7c3aed'; }}
                         onMouseLeave={(e) => { (e.currentTarget.querySelector('span') as HTMLElement).style.color = '#374151'; }}
                       >
-                        <LayoutDashboard style={{ width: 14, height: 14, color: '#c70fff' }} />
+                        <LayoutDashboard style={{ width: 14, height: 14, color: '#7c3aed' }} />
                         <span style={{ fontSize: 13, color: '#374151' }}>Panel de Control</span>
                       </button>
                     ) : (
@@ -189,7 +189,7 @@ export function Header() {
             <button
               onClick={() => setIsCategoryMenuOpen((v) => !v)}
               className="flex items-center gap-1 uppercase tracking-widest transition-colors"
-              style={{ color: isCategoryMenuOpen ? '#c70fff' : '#6b7280' }}
+              style={{ color: isCategoryMenuOpen ? '#7c3aed' : '#6b7280' }}
             >
               Categorías
               <span style={{ fontSize: 9, transform: isCategoryMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 0.2s' }}>▾</span>
@@ -217,7 +217,7 @@ export function Header() {
                 <Search className="w-4 h-4" /> Buscar
               </button>
               {!user ? (
-                <button onClick={() => { setIsMobileMenuOpen(false); setIsLoginOpen(true); }} className="flex items-center gap-2 text-[#c70fff] tracking-widest uppercase">
+                <button onClick={() => { setIsMobileMenuOpen(false); setIsLoginOpen(true); }} className="flex items-center gap-2 text-[#7c3aed] tracking-widest uppercase">
                   <User className="w-4 h-4" /> Iniciar sesión
                 </button>
               ) : (

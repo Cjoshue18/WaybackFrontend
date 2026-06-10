@@ -75,7 +75,7 @@ export function FilterSidebar({ filters, setFilters }: FilterSidebarProps) {
             </span>
           </div>
           {hasActive && (
-            <button onClick={resetAll} style={{ fontSize: 11, color: '#c70fff', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }} className="hover:text-[#a800d9] transition-colors">
+            <button onClick={resetAll} style={{ fontSize: 11, color: '#7c3aed', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }} className="hover:text-[#6d28d9] transition-colors">
               Limpiar
             </button>
           )}
@@ -94,10 +94,10 @@ export function FilterSidebar({ filters, setFilters }: FilterSidebarProps) {
                   const active = filters.sexo.includes(s);
                   return (
                     <button key={s} onClick={() => toggleSexo(s)} className="flex items-center gap-2.5 text-left transition-colors group">
-                      <span style={{ width: 14, height: 14, border: `1.5px solid ${active ? '#c70fff' : '#d1d5db'}`, background: active ? '#c70fff' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <span style={{ width: 14, height: 14, border: `1.5px solid ${active ? '#7c3aed' : '#d1d5db'}`, background: active ? '#7c3aed' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         {active && <svg viewBox="0 0 10 10" fill="none" style={{ width: 8, height: 8 }}><path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                       </span>
-                      <span style={{ fontSize: 13, color: active ? '#c70fff' : '#6b7280', fontWeight: active ? 600 : 400 }} className="group-hover:text-[#c70fff] transition-colors">{s}</span>
+                      <span style={{ fontSize: 13, color: active ? '#7c3aed' : '#6b7280', fontWeight: active ? 600 : 400 }} className="group-hover:text-[#7c3aed] transition-colors">{s}</span>
                     </button>
                   );
                 })}
@@ -122,8 +122,8 @@ export function FilterSidebar({ filters, setFilters }: FilterSidebarProps) {
                       style={{
                         width: 26, height: 26,
                         background: c.hex,
-                        border: active ? '2px solid #c70fff' : `1px solid ${['#FFFFFF','#FFFF00','#F5F5DC'].includes(c.hex) ? '#d1d5db' : 'transparent'}`,
-                        outline: active ? '2px solid #c70fff' : 'none',
+                        border: active ? '2px solid #7c3aed' : `1px solid ${['#FFFFFF','#FFFF00','#F5F5DC'].includes(c.hex) ? '#d1d5db' : 'transparent'}`,
+                        outline: active ? '2px solid #7c3aed' : 'none',
                         outlineOffset: 2,
                         transition: 'transform 0.15s',
                         transform: active ? 'scale(1.15)' : 'scale(1)',
@@ -151,8 +151,8 @@ export function FilterSidebar({ filters, setFilters }: FilterSidebarProps) {
                       onClick={() => toggleTalla(t)}
                       style={{
                         padding: '4px 12px',
-                        border: `1.5px solid ${active ? '#c70fff' : '#e5e7eb'}`,
-                        background: active ? '#c70fff' : 'transparent',
+                        border: `1.5px solid ${active ? '#7c3aed' : '#e5e7eb'}`,
+                        background: active ? '#7c3aed' : 'transparent',
                         color: active ? '#fff' : '#374151',
                         fontSize: 12, fontWeight: active ? 700 : 400,
                         letterSpacing: '0.04em', transition: 'all 0.15s',
@@ -175,7 +175,7 @@ export function FilterSidebar({ filters, setFilters }: FilterSidebarProps) {
               <label className="flex items-center gap-2.5 cursor-pointer mt-3">
                 <span
                   onClick={() => setFilters({ ...filters, soloDisponibles: !filters.soloDisponibles })}
-                  style={{ width: 14, height: 14, border: `1.5px solid ${filters.soloDisponibles ? '#c70fff' : '#d1d5db'}`, background: filters.soloDisponibles ? '#c70fff' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                  style={{ width: 14, height: 14, border: `1.5px solid ${filters.soloDisponibles ? '#7c3aed' : '#d1d5db'}`, background: filters.soloDisponibles ? '#7c3aed' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
                 >
                   {filters.soloDisponibles && <svg viewBox="0 0 10 10" fill="none" style={{ width: 8, height: 8 }}><path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                 </span>
@@ -201,7 +201,7 @@ export function FilterSidebar({ filters, setFilters }: FilterSidebarProps) {
                   value={filters.precioMax}
                   onChange={(e) => setFilters({ ...filters, precioMax: Number(e.target.value) })}
                   className="w-full"
-                  style={{ accentColor: '#c70fff' }}
+                  style={{ accentColor: '#7c3aed' }}
                 />
               </div>
             )}

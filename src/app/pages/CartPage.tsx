@@ -14,9 +14,9 @@ interface CartItem {
 
 
 export function CartPage() {
-  const [cartItems, setCartItems] = useState<CartItem[]>(mockCartItems);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [couponCode, setCouponCode] = useState('');
-
+    
   const updateQuantity = (id: number, delta: number) => {
     setCartItems(
       cartItems.map((item) =>
@@ -42,8 +42,8 @@ export function CartPage() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <ShoppingBag className="w-8 h-8 text-[#c70fff]" />
-            <h1 className="text-3xl text-[#c70fff] bg-clip-text text-transparent">
+            <ShoppingBag className="w-8 h-8 text-[#7c3aed]" />
+            <h1 className="text-3xl font-bold text-[#7c3aed]">
               Mi Carrito
             </h1>
           </div>
@@ -54,7 +54,7 @@ export function CartPage() {
 
         {cartItems.length === 0 ? (
           /* Empty Cart */
-          <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-[rgba(199,15,255,0.15)]">
+          <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-[rgba(124,58,237,0.15)]">
             <ShoppingBag className="w-20 h-20 text-gray-300 mx-auto mb-6" />
             <h3 className="text-2xl font-semibold text-gray-800 mb-2">
               Tu carrito está vacío
@@ -64,7 +64,7 @@ export function CartPage() {
             </p>
             <a
               href="/"
-              className="inline-block px-6 py-3 bg-[#c70fff] text-white rounded-full hover:bg-[#a800d9] transition-colors"
+              className="inline-block px-6 py-3 bg-[#7c3aed] text-white rounded-full hover:bg-[#6d28d9] transition-colors"
             >
               Explorar productos
             </a>
@@ -76,7 +76,7 @@ export function CartPage() {
               {cartItems.map((item) => (
                 <div
                   key={item.id}
-                  className="bg-white rounded-2xl p-6 shadow-sm border border-[rgba(199,15,255,0.15)] hover:shadow-md transition-shadow"
+                  className="bg-white rounded-2xl p-6 shadow-sm border border-[rgba(124,58,237,0.15)] hover:shadow-md transition-shadow"
                 >
                   <div className="flex gap-4">
                     {/* Image */}
@@ -112,18 +112,18 @@ export function CartPage() {
                         <div className="flex items-center gap-3">
                           <button
                             onClick={() => updateQuantity(item.id, -1)}
-                            className="w-8 h-8 rounded-full border border-[rgba(199,15,255,0.2)] flex items-center justify-center hover:bg-[rgba(199,15,255,0.05)] transition-colors"
+                            className="w-8 h-8 rounded-full border border-[rgba(124,58,237,0.2)] flex items-center justify-center hover:bg-[rgba(124,58,237,0.05)] transition-colors"
                           >
-                            <Minus className="w-4 h-4 text-[#c70fff]" />
+                            <Minus className="w-4 h-4 text-[#7c3aed]" />
                           </button>
                           <span className="w-8 text-center font-semibold text-gray-800">
                             {item.quantity}
                           </span>
                           <button
                             onClick={() => updateQuantity(item.id, 1)}
-                            className="w-8 h-8 rounded-full border border-[rgba(199,15,255,0.2)] flex items-center justify-center hover:bg-[rgba(199,15,255,0.05)] transition-colors"
+                            className="w-8 h-8 rounded-full border border-[rgba(124,58,237,0.2)] flex items-center justify-center hover:bg-[rgba(124,58,237,0.05)] transition-colors"
                           >
-                            <Plus className="w-4 h-4 text-[#c70fff]" />
+                            <Plus className="w-4 h-4 text-[#7c3aed]" />
                           </button>
                         </div>
 
@@ -145,10 +145,10 @@ export function CartPage() {
               ))}
 
               {/* Benefits */}
-              <div className="bg-[rgba(199,15,255,0.04)] rounded-2xl p-6 border border-[rgba(199,15,255,0.15)]">
+              <div className="bg-[rgba(124,58,237,0.04)] rounded-2xl p-6 border border-[rgba(124,58,237,0.15)]">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="flex items-start gap-3">
-                    <Truck className="w-5 h-5 text-[#c70fff] flex-shrink-0 mt-0.5" />
+                    <Truck className="w-5 h-5 text-[#7c3aed] flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="font-semibold text-gray-800 text-sm mb-1">
                         Envío gratis
@@ -159,7 +159,7 @@ export function CartPage() {
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <ShieldCheck className="w-5 h-5 text-[#c70fff] flex-shrink-0 mt-0.5" />
+                    <ShieldCheck className="w-5 h-5 text-[#7c3aed] flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="font-semibold text-gray-800 text-sm mb-1">
                         Compra segura
@@ -170,7 +170,7 @@ export function CartPage() {
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <Tag className="w-5 h-5 text-[#c70fff] flex-shrink-0 mt-0.5" />
+                    <Tag className="w-5 h-5 text-[#7c3aed] flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="font-semibold text-gray-800 text-sm mb-1">
                         Mejor precio
@@ -186,7 +186,7 @@ export function CartPage() {
 
             {/* Order Summary */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-[rgba(199,15,255,0.15)] sticky top-24">
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-[rgba(124,58,237,0.15)] sticky top-24">
                 <h3 className="text-lg font-semibold text-gray-800 mb-6">
                   Resumen de compra
                 </h3>
@@ -202,16 +202,16 @@ export function CartPage() {
                       value={couponCode}
                       onChange={(e) => setCouponCode(e.target.value)}
                       placeholder="Ingresa tu código"
-                      className="flex-1 px-4 py-2 border border-[rgba(199,15,255,0.2)] rounded-full focus:outline-none focus:border-[#c70fff] text-sm"
+                      className="flex-1 px-4 py-2 border border-[rgba(124,58,237,0.2)] rounded-full focus:outline-none focus:border-[#7c3aed] text-sm"
                     />
-                    <button className="px-6 py-2 bg-[#c70fff] text-white rounded-full hover:bg-[#a800d9] transition-colors text-sm">
+                    <button className="px-6 py-2 bg-[#7c3aed] text-white rounded-full hover:bg-[#6d28d9] transition-colors text-sm">
                       Aplicar
                     </button>
                   </div>
                 </div>
 
                 {/* Price Breakdown */}
-                <div className="space-y-3 mb-6 pb-6 border-b border-[rgba(199,15,255,0.15)]">
+                <div className="space-y-3 mb-6 pb-6 border-b border-[rgba(124,58,237,0.15)]">
                   <div className="flex justify-between text-gray-600">
                     <span>Subtotal</span>
                     <span>${subtotal.toLocaleString()}</span>
@@ -237,37 +237,37 @@ export function CartPage() {
                 {/* Total */}
                 <div className="flex justify-between mb-6">
                   <span className="text-lg font-semibold text-gray-800">Total</span>
-                  <span className="text-2xl font-bold text-[#c70fff] bg-clip-text text-transparent">
+                  <span className="text-2xl font-bold text-[#7c3aed]">
                     ${total.toLocaleString()}
                   </span>
                 </div>
 
                 {/* Checkout Button */}
-                <button className="w-full py-4 bg-[#c70fff] text-white rounded-full hover:bg-[#a800d9] transition-colors font-semibold mb-3">
+                <button className="w-full py-4 bg-[#7c3aed] text-white rounded-full hover:bg-[#6d28d9] transition-colors font-semibold mb-3">
                   Proceder al pago
                 </button>
 
                 {/* Continue Shopping */}
                 <a
                   href="/"
-                  className="block text-center text-[#c70fff] hover:text-[#c70fff] text-sm"
+                  className="block text-center text-[#7c3aed] hover:text-[#7c3aed] text-sm"
                 >
                   Continuar comprando
                 </a>
 
                 {/* Free Shipping Info */}
                 {shipping > 0 && (
-                  <div className="mt-6 p-4 bg-[rgba(199,15,255,0.04)] rounded-xl">
+                  <div className="mt-6 p-4 bg-[rgba(124,58,237,0.04)] rounded-xl">
                     <p className="text-sm text-gray-600">
                       Agrega{' '}
-                      <span className="font-semibold text-[#c70fff]">
+                      <span className="font-semibold text-[#7c3aed]">
                         ${(1500 - subtotal).toLocaleString()}
                       </span>{' '}
                       más para obtener envío gratis
                     </p>
-                    <div className="mt-2 w-full bg-[rgba(199,15,255,0.2)] rounded-full h-2">
+                    <div className="mt-2 w-full bg-[rgba(124,58,237,0.2)] rounded-full h-2">
                       <div
-                        className="bg-[#c70fff] h-2 rounded-full transition-all"
+                        className="bg-[#7c3aed] h-2 rounded-full transition-all"
                         style={{ width: `${Math.min((subtotal / 1500) * 100, 100)}%` }}
                       />
                     </div>

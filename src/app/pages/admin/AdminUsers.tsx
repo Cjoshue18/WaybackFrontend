@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Edit2, Trash2, X, Plus } from 'lucide-react';
+import { getClientes } from '../../../lib/api';
 
 interface Usuario {
   cli_id: number;
@@ -26,6 +27,8 @@ export function AdminUsers() {
   const [editing,  setEditing]  = useState<Usuario | null>(null);
   const [form,     setForm]     = useState(EMPTY_FORM);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState<string | null>(null);
 
   const filtered = users.filter((u) =>
     `${u.cli_nombre} ${u.cli_apellido} ${u.cli_email}`.toLowerCase().includes(search.toLowerCase())
@@ -37,6 +40,25 @@ export function AdminUsers() {
     setForm({ cli_nombre: u.cli_nombre, cli_apellido: u.cli_apellido, cli_email: u.cli_email, cli_telefono: u.cli_telefono, cli_documento_tipo: u.cli_documento_tipo, cli_documento: u.cli_documento });
     setShowForm(true);
   };
+
+  useEffect(() => {
+    let active = true;
+    getClientes()
+      .then((remote) => {
+        if (!active) return;
+        setUsers(remote);
+        setError(null);
+      })
+      .catch((err) => {
+        if (!active) return;
+        setError('No se pudo cargar los clientes desde el backend.');
+        console.error(err);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,9 +87,9 @@ export function AdminUsers() {
         <button
           onClick={openAdd}
           className="flex items-center gap-2 px-4 py-2.5 text-white"
-          style={{ background: '#c70fff', fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#a800d9'; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#c70fff'; }}
+          style={{ background: '#7c3aed', fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#6d28d9'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#7c3aed'; }}
         >
           <Plus style={{ width: 14, height: 14 }} /> Agregar
         </button>
@@ -85,7 +107,16 @@ export function AdminUsers() {
 
       {/* table */}
       <div className="bg-white" style={{ border: '1px solid #f0f0f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-        {filtered.length === 0 ? (
+        {error ? (
+          <div className="px-5 py-4 text-sm text-red-600" style={{ background: '#fff1f2' }}>
+            {error}
+          </div>
+        ) : null}
+        {loading ? (
+          <div className="text-center py-16">
+            <p style={{ fontSize: 14, color: '#9ca3af' }}>Cargando clientes...</p>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="text-center py-16">
             <p style={{ fontSize: 14, color: '#9ca3af', marginBottom: 6 }}>
               {search ? `Sin resultados para "${search}"` : 'No hay usuarios registrados'}
@@ -114,7 +145,7 @@ export function AdminUsers() {
                   <td className="px-5 py-3.5" style={{ fontSize: 12, color: '#9ca3af' }}>{u.cli_fecha_registro}</td>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2">
-                      <button onClick={() => openEdit(u)} className="p-1.5 text-gray-300 hover:text-[#c70fff] transition-colors">
+                      <button onClick={() => openEdit(u)} className="p-1.5 text-gray-300 hover:text-[#7c3aed] transition-colors">
                         <Edit2 style={{ width: 13, height: 13 }} />
                       </button>
                       <button onClick={() => setDeleteId(u.cli_id)} className="p-1.5 text-gray-300 hover:text-red-500 transition-colors">
@@ -155,7 +186,7 @@ export function AdminUsers() {
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-2.5 border border-gray-200 text-gray-600" style={{ fontSize: 12 }}>Cancelar</button>
-                <button type="submit" className="flex-1 py-2.5 text-white" style={{ background: '#c70fff', fontSize: 12, fontWeight: 700 }}>{editing ? 'Guardar' : 'Crear'}</button>
+                <button type="submit" className="flex-1 py-2.5 text-white" style={{ background: '#7c3aed', fontSize: 12, fontWeight: 700 }}>{editing ? 'Guardar' : 'Crear'}</button>
               </div>
             </form>
           </div>
@@ -176,7 +207,7 @@ export function AdminUsers() {
         </div>
       )}
 
-      <style>{`.fi { width:100%; padding:8px 12px; border:1px solid #e5e7eb; background:#fafafa; font-size:13px; color:#111; outline:none; } .fi:focus { border-color:#c70fff; background:#fff; }`}</style>
+      <style>{`.fi { width:100%; padding:8px 12px; border:1px solid #e5e7eb; background:#fafafa; font-size:13px; color:#111; outline:none; } .fi:focus { border-color:#7c3aed; background:#fff; }`}</style>
     </div>
   );
 }

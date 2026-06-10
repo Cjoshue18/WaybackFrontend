@@ -117,7 +117,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
             {/* brand */}
             <div className="mb-10">
               <span
-                style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.28em', color: '#c70fff', textTransform: 'uppercase', display: 'block', marginBottom: 16 }}
+                style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.28em', color: '#7c3aed', textTransform: 'uppercase', display: 'block', marginBottom: 16 }}
               >
                 WAYBACK
               </span>
@@ -146,7 +146,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   placeholder="tu@correo.com"
                   required
                   autoComplete="email"
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 text-gray-800 placeholder-gray-300 focus:outline-none focus:border-[#c70fff] focus:bg-white transition-all"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 text-gray-800 placeholder-gray-300 focus:outline-none focus:border-[#7c3aed] focus:bg-white transition-all"
                   style={{ fontSize: 14 }}
                 />
               </div>
@@ -166,7 +166,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
                     placeholder="••••••••"
                     required
                     autoComplete="current-password"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 text-gray-800 placeholder-gray-300 focus:outline-none focus:border-[#c70fff] focus:bg-white transition-all pr-11"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 text-gray-800 placeholder-gray-300 focus:outline-none focus:border-[#7c3aed] focus:bg-white transition-all pr-11"
                     style={{ fontSize: 14 }}
                   />
                   <button
@@ -194,9 +194,9 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 type="submit"
                 disabled={loading}
                 className="flex items-center justify-center gap-2 py-3 text-white transition-colors mt-2"
-                style={{ background: loading ? '#a800d9' : '#c70fff', fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}
-                onMouseEnter={(e) => { if (!loading) (e.currentTarget as HTMLButtonElement).style.background = '#a800d9'; }}
-                onMouseLeave={(e) => { if (!loading) (e.currentTarget as HTMLButtonElement).style.background = '#c70fff'; }}
+                style={{ background: loading ? '#6d28d9' : '#7c3aed', fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}
+                onMouseEnter={(e) => { if (!loading) (e.currentTarget as HTMLButtonElement).style.background = '#6d28d9'; }}
+                onMouseLeave={(e) => { if (!loading) (e.currentTarget as HTMLButtonElement).style.background = '#7c3aed'; }}
               >
                 {loading
                   ? <><Loader style={{ width: 14, height: 14 }} className="animate-spin" /> Verificando…</>
@@ -220,7 +220,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
               style={{ background: '#fafafa', border: '1px solid #f3f4f6' }}
             >
               <p style={{ fontSize: 11, color: '#9ca3af' }}>
-                <strong style={{ color: '#c70fff' }}>Admin demo:</strong> admin@wayback.com · admin123
+                <strong style={{ color: '#7c3aed' }}>Admin demo:</strong> admin@wayback.com · admin123
               </p>
             </div>
           </div>

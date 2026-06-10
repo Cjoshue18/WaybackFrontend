@@ -20,7 +20,7 @@ const EMPTY_ORDERS: Pedido[] = [];
 const ESTADO_COLORS: Record<string, { color: string; bg: string }> = {
   Pendiente:   { color: '#f59e0b', bg: 'rgba(245,158,11,0.08)' },
   Confirmado:  { color: '#0ea5e9', bg: 'rgba(14,165,233,0.08)' },
-  'En camino': { color: '#c70fff', bg: 'rgba(199,15,255,0.08)' },
+  'En camino': { color: '#7c3aed', bg: 'rgba(124,58,237,0.08)' },
   Entregado:   { color: '#10b981', bg: 'rgba(16,185,129,0.08)' },
   Cancelado:   { color: '#ef4444', bg: 'rgba(239,68,68,0.08)' },
 };
@@ -111,7 +111,7 @@ export function AdminOrders() {
                     <td className="px-5 py-3.5" style={{ fontSize: 12, color: '#9ca3af' }}>{o.ped_fecha_compra}</td>
                     <td className="px-5 py-3.5" style={{ fontSize: 12, color: '#9ca3af' }}>{o.ped_fecha_entrega}</td>
                     <td className="px-5 py-3.5">
-                      <button onClick={() => setViewing(o)} className="p-1.5 text-gray-300 hover:text-[#c70fff] transition-colors">
+                      <button onClick={() => setViewing(o)} className="p-1.5 text-gray-300 hover:text-[#7c3aed] transition-colors">
                         <Eye style={{ width: 14, height: 14 }} />
                       </button>
                     </td>

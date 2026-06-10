@@ -55,10 +55,10 @@ export function SearchPage() {
         <div className="flex items-center gap-2 mb-1" style={{ fontSize: 13, color: '#9ca3af' }}>
           <span>Inicio</span>
           <span>/</span>
-          <span style={{ color: '#c70fff' }}>{isImage ? 'Búsqueda por imagen' : 'Búsqueda'}</span>
+          <span style={{ color: '#7c3aed' }}>{isImage ? 'Búsqueda por imagen' : 'Búsqueda'}</span>
         </div>
         <div className="flex items-center gap-3">
-          <Search className="w-5 h-5 text-[#c70fff]" />
+          <Search className="w-5 h-5 text-[#7c3aed]" />
           <h1 style={{ fontSize: 26, fontWeight: 700, color: '#1f2937', letterSpacing: '-0.02em' }}>
             {isImage ? 'Resultados similares a tu imagen' : title}
           </h1>
@@ -70,14 +70,14 @@ export function SearchPage() {
 
       {/* mobile filter toggle */}
       <button
-        className="md:hidden flex items-center gap-2 mb-4 px-4 py-2 border border-[rgba(199,15,255,0.2)] text-[#c70fff]"
+        className="md:hidden flex items-center gap-2 mb-4 px-4 py-2 border border-[rgba(124,58,237,0.2)] text-[#7c3aed]"
         style={{ fontSize: 13 }}
         onClick={() => setShowMobileFilters((v) => !v)}
       >
         <SlidersHorizontal className="w-4 h-4" />
         Filtros
         {(filters.colors.length + filters.sizes.length + (filters.inStock ? 1 : 0)) > 0 && (
-          <span className="w-5 h-5 rounded-full bg-[#c70fff] text-white flex items-center justify-center" style={{ fontSize: 10 }}>
+          <span className="w-5 h-5 rounded-full bg-[#7c3aed] text-white flex items-center justify-center" style={{ fontSize: 10 }}>
             {filters.colors.length + filters.sizes.length + (filters.inStock ? 1 : 0)}
           </span>
         )}
@@ -99,7 +99,7 @@ export function SearchPage() {
               {filters.colors.map((c) => (
                 <span
                   key={c}
-                  className="flex items-center gap-1.5 px-3 py-1 bg-[rgba(199,15,255,0.04)] text-[#c70fff] border border-[rgba(199,15,255,0.2)]"
+                  className="flex items-center gap-1.5 px-3 py-1 bg-[rgba(124,58,237,0.04)] text-[#7c3aed] border border-[rgba(124,58,237,0.2)]"
                   style={{ fontSize: 12 }}
                 >
                   {c}
@@ -111,7 +111,7 @@ export function SearchPage() {
               {filters.sizes.map((s) => (
                 <span
                   key={s}
-                  className="flex items-center gap-1.5 px-3 py-1 bg-[rgba(199,15,255,0.04)] text-[#c70fff] border border-[rgba(199,15,255,0.2)]"
+                  className="flex items-center gap-1.5 px-3 py-1 bg-[rgba(124,58,237,0.04)] text-[#7c3aed] border border-[rgba(124,58,237,0.2)]"
                   style={{ fontSize: 12 }}
                 >
                   Talla {s}
@@ -126,7 +126,7 @@ export function SearchPage() {
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as SortOption)}
-              className="px-4 py-2 border border-[rgba(199,15,255,0.2)] bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#c70fff]"
+              className="px-4 py-2 border border-[rgba(124,58,237,0.2)] bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]"
               style={{ fontSize: 13 }}
             >
               <option value="recientes">Más recientes</option>
@@ -147,7 +147,7 @@ export function SearchPage() {
             <div className="py-20 text-center">
               <p style={{ fontSize: 15, color: '#6b7280' }}>No encontramos productos con esos criterios.</p>
               <button
-                className="mt-4 px-6 py-2 bg-[#c70fff] text-white hover:bg-[#a800d9] transition-colors"
+                className="mt-4 px-6 py-2 bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors"
                 style={{ fontSize: 13 }}
                 onClick={() => setFilters({ colors: [], sizes: [], inStock: false, priceRange: [0, 200] })}
               >

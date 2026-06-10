@@ -1,7 +1,7 @@
 import { Package, Users, ShoppingBag, Tag, TrendingUp, Clock } from 'lucide-react';
 
 const STATS = [
-  { label: 'Productos', value: '—', sub: 'Pendiente de API', icon: Package,     color: '#c70fff', bg: 'rgba(199,15,255,0.08)' },
+  { label: 'Productos', value: '—', sub: 'Pendiente de API', icon: Package,     color: '#7c3aed', bg: 'rgba(124,58,237,0.08)' },
   { label: 'Usuarios',  value: '—', sub: 'Pendiente de API', icon: Users,       color: '#0ea5e9', bg: 'rgba(14,165,233,0.08)' },
   { label: 'Pedidos',   value: '—', sub: 'Pendiente de API', icon: ShoppingBag, color: '#10b981', bg: 'rgba(16,185,129,0.08)' },
   { label: 'Categorías',value: '11', sub: 'Categorías activas', icon: Tag,       color: '#f59e0b', bg: 'rgba(245,158,11,0.08)' },
@@ -57,7 +57,7 @@ export function AdminDashboard() {
           style={{ border: '1px solid #f0f0f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}
         >
           <div className="flex items-center gap-2 mb-5">
-            <Clock style={{ width: 15, height: 15, color: '#c70fff' }} />
+            <Clock style={{ width: 15, height: 15, color: '#7c3aed' }} />
             <h2 style={{ fontSize: 14, fontWeight: 700, color: '#111', letterSpacing: '-0.01em' }}>
               Pedidos recientes
             </h2>
@@ -84,7 +84,7 @@ export function AdminDashboard() {
                     <td className="py-2.5" style={{ fontSize: 12, color: '#6b7280' }}>#{o.id}</td>
                     <td className="py-2.5" style={{ fontSize: 13, color: '#111', fontWeight: 500 }}>{o.cliente}</td>
                     <td className="py-2.5">
-                      <span style={{ fontSize: 11, fontWeight: 600, color: '#c70fff', background: 'rgba(199,15,255,0.08)', padding: '2px 8px' }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#7c3aed', background: 'rgba(124,58,237,0.08)', padding: '2px 8px' }}>
                         {o.estado}
                       </span>
                     </td>
@@ -102,7 +102,7 @@ export function AdminDashboard() {
           style={{ border: '1px solid #f0f0f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}
         >
           <div className="flex items-center gap-2 mb-5">
-            <TrendingUp style={{ width: 15, height: 15, color: '#c70fff' }} />
+            <TrendingUp style={{ width: 15, height: 15, color: '#7c3aed' }} />
             <h2 style={{ fontSize: 14, fontWeight: 700, color: '#111', letterSpacing: '-0.01em' }}>
               Estado del sistema
             </h2>

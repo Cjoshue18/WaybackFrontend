@@ -1,44 +1,61 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, X } from 'lucide-react';
+import { getCategorias, Categoria as CategoriaApi } from '../../../lib/api';
 
-interface Categoria {
-  cat_id: number;
-  cat_nombre: string;
-  tipo: 'prenda' | 'coleccion';
-}
-
-const INITIAL: Categoria[] = [
-  { cat_id: 1,  cat_nombre: 'Pantalón',        tipo: 'prenda' },
-  { cat_id: 2,  cat_nombre: 'Falda',            tipo: 'prenda' },
-  { cat_id: 3,  cat_nombre: 'Shorts',           tipo: 'prenda' },
-  { cat_id: 4,  cat_nombre: 'Jogger',           tipo: 'prenda' },
-  { cat_id: 5,  cat_nombre: 'Camisetas',        tipo: 'prenda' },
-  { cat_id: 6,  cat_nombre: 'Suéteres',         tipo: 'prenda' },
-  { cat_id: 7,  cat_nombre: 'Chaquetas',        tipo: 'prenda' },
-  { cat_id: 8,  cat_nombre: 'Sets Baggy',       tipo: 'coleccion' },
-  { cat_id: 9,  cat_nombre: 'Sets Denim',       tipo: 'coleccion' },
-  { cat_id: 10, cat_nombre: 'Sets Deportivos',  tipo: 'coleccion' },
-  { cat_id: 11, cat_nombre: 'Sets Tejidos',     tipo: 'coleccion' },
+const INITIAL: CategoriaApi[] = [
+  { cat_id: 1,  cat_nombre: 'Pantalón' },
+  { cat_id: 2,  cat_nombre: 'Falda' },
+  { cat_id: 3,  cat_nombre: 'Shorts' },
+  { cat_id: 4,  cat_nombre: 'Jogger' },
+  { cat_id: 5,  cat_nombre: 'Camisetas' },
+  { cat_id: 6,  cat_nombre: 'Suéteres' },
+  { cat_id: 7,  cat_nombre: 'Chaquetas' },
+  { cat_id: 8,  cat_nombre: 'Sets Baggy' },
+  { cat_id: 9,  cat_nombre: 'Sets Denim' },
+  { cat_id: 10, cat_nombre: 'Sets Deportivos' },
+  { cat_id: 11, cat_nombre: 'Sets Tejidos' },
 ];
 
 export function AdminCategories() {
-  const [cats,     setCats]     = useState<Categoria[]>(INITIAL);
+  const [cats,     setCats]     = useState<CategoriaApi[]>(INITIAL);
   const [showForm, setShowForm] = useState(false);
-  const [editing,  setEditing]  = useState<Categoria | null>(null);
+  const [editing,  setEditing]  = useState<CategoriaApi | null>(null);
   const [nombre,   setNombre]   = useState('');
-  const [tipo,     setTipo]     = useState<'prenda' | 'coleccion'>('prenda');
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState<string | null>(null);
 
-  const openAdd = () => { setEditing(null); setNombre(''); setTipo('prenda'); setShowForm(true); };
-  const openEdit = (c: Categoria) => { setEditing(c); setNombre(c.cat_nombre); setTipo(c.tipo); setShowForm(true); };
+  const openAdd = () => { setEditing(null); setNombre(''); setShowForm(true); };
+  const openEdit = (c: CategoriaApi) => { setEditing(c); setNombre(c.cat_nombre); setShowForm(true); };
+
+  useEffect(() => {
+    let active = true;
+    getCategorias()
+      .then((remote) => {
+        if (!active) return;
+        if (remote.length > 0) {
+          setCats(remote);
+          setError(null);
+        }
+      })
+      .catch((err) => {
+        if (!active) return;
+        setError('No se pudo cargar las categorías desde el backend.');
+        console.error(err);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombre.trim()) return;
     if (editing) {
-      setCats((prev) => prev.map((c) => c.cat_id === editing.cat_id ? { ...c, cat_nombre: nombre, tipo } : c));
+      setCats((prev) => prev.map((c) => c.cat_id === editing.cat_id ? { ...c, cat_nombre: nombre } : c));
     } else {
-      setCats((prev) => [...prev, { cat_id: Date.now(), cat_nombre: nombre, tipo }]);
+      setCats((prev) => [...prev, { cat_id: Date.now(), cat_nombre: nombre }]);
     }
     setShowForm(false);
   };
@@ -47,9 +64,6 @@ export function AdminCategories() {
     setCats((prev) => prev.filter((c) => c.cat_id !== id));
     setDeleteId(null);
   };
-
-  const prendas    = cats.filter((c) => c.tipo === 'prenda');
-  const colecciones = cats.filter((c) => c.tipo === 'coleccion');
 
   return (
     <div>
@@ -61,26 +75,33 @@ export function AdminCategories() {
         <button
           onClick={openAdd}
           className="flex items-center gap-2 px-4 py-2.5 text-white"
-          style={{ background: '#c70fff', fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#a800d9'; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#c70fff'; }}
+          style={{ background: '#7c3aed', fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#6d28d9'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#7c3aed'; }}
         >
           <Plus style={{ width: 14, height: 14 }} /> Agregar
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {[{ label: 'Prendas', items: prendas }, { label: 'Colecciones', items: colecciones }].map(({ label, items }) => (
-          <div key={label} className="bg-white" style={{ border: '1px solid #f0f0f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-            <div className="px-5 py-4" style={{ borderBottom: '1px solid #f3f4f6' }}>
-              <h2 style={{ fontSize: 12, fontWeight: 700, color: '#374151', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{label}</h2>
-            </div>
-            <div>
-              {items.map((c, i) => (
+      <div className="bg-white" style={{ border: '1px solid #f0f0f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+        <div className="px-5 py-4" style={{ borderBottom: '1px solid #f3f4f6' }}>
+          <h2 style={{ fontSize: 12, fontWeight: 700, color: '#374151', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Categorías</h2>
+        </div>
+        {error ? (
+          <div className="px-5 py-4 text-sm text-red-600" style={{ background: '#fef2f2' }}>
+            {error}
+          </div>
+        ) : null}
+        <div>
+          {loading ? (
+            <div className="px-5 py-6 text-sm text-gray-500">Cargando categorías...</div>
+          ) : (
+            cats.map((c, i) => {
+              return (
                 <div
                   key={c.cat_id}
                   className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors"
-                  style={{ borderBottom: i < items.length - 1 ? '1px solid #f9f9f9' : 'none' }}
+                  style={{ borderBottom: i < cats.length - 1 ? '1px solid #f9f9f9' : 'none' }}
                 >
                   <div className="flex items-center gap-3">
                     <span style={{ fontSize: 11, color: '#d1d5db', fontWeight: 600, minWidth: 20 }}>
@@ -89,7 +110,7 @@ export function AdminCategories() {
                     <span style={{ fontSize: 14, fontWeight: 500, color: '#111' }}>{c.cat_nombre}</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => openEdit(c)} className="p-1.5 text-gray-300 hover:text-[#c70fff] transition-colors">
+                    <button onClick={() => openEdit(c)} className="p-1.5 text-gray-300 hover:text-[#7c3aed] transition-colors">
                       <Edit2 style={{ width: 13, height: 13 }} />
                     </button>
                     <button onClick={() => setDeleteId(c.cat_id)} className="p-1.5 text-gray-300 hover:text-red-500 transition-colors">
@@ -97,10 +118,10 @@ export function AdminCategories() {
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        ))}
+              );
+            })
+          )}
+        </div>
       </div>
 
       {/* form modal */}
@@ -120,32 +141,14 @@ export function AdminCategories() {
                 <input
                   type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)}
                   placeholder="Ej: Vestidos" autoFocus
-                  className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 focus:outline-none focus:border-[#c70fff] focus:bg-white transition-all"
+                  className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 focus:outline-none focus:border-[#7c3aed] focus:bg-white transition-all"
                   style={{ fontSize: 14 }}
                 />
               </div>
-              <div>
-                <label style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Tipo</label>
-                <div className="flex gap-3">
-                  {(['prenda', 'coleccion'] as const).map((t) => (
-                    <button
-                      key={t} type="button" onClick={() => setTipo(t)}
-                      className="flex-1 py-2.5 capitalize transition-all"
-                      style={{
-                        border: `1.5px solid ${tipo === t ? '#c70fff' : '#e5e7eb'}`,
-                        background: tipo === t ? 'rgba(199,15,255,0.06)' : 'transparent',
-                        color: tipo === t ? '#c70fff' : '#6b7280',
-                        fontSize: 13, fontWeight: tipo === t ? 700 : 400,
-                      }}
-                    >
-                      {t === 'prenda' ? 'Prenda' : 'Colección'}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-2.5 border border-gray-200 text-gray-600 hover:border-gray-400 transition-colors" style={{ fontSize: 12, fontWeight: 600 }}>Cancelar</button>
-                <button type="submit" className="flex-1 py-2.5 text-white" style={{ background: '#c70fff', fontSize: 12, fontWeight: 700 }}>
+                <button type="submit" className="flex-1 py-2.5 text-white" style={{ background: '#7c3aed', fontSize: 12, fontWeight: 700 }}>
                   {editing ? 'Guardar' : 'Crear'}
                 </button>
               </div>

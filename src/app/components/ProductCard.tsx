@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Heart, Plus } from 'lucide-react';
-import { QuickViewModal } from './QuickViewModal';
+
 
 interface Product {
   id: number;
@@ -28,8 +28,8 @@ export function ProductCard({ product }: ProductCardProps) {
         className="group cursor-pointer bg-white overflow-hidden transition-all duration-300"
         style={{
           boxShadow: isHovered
-            ? '0 16px 40px rgba(199,15,255,0.13), 0 4px 16px rgba(0,0,0,0.06)'
-            : '0 2px 12px rgba(199,15,255,0.07), 0 1px 4px rgba(0,0,0,0.04)',
+            ? '0 16px 40px rgba(124,58,237,0.13), 0 4px 16px rgba(0,0,0,0.06)'
+            : '0 2px 12px rgba(124,58,237,0.07), 0 1px 4px rgba(0,0,0,0.04)',
           transform: isHovered ? 'translateY(-4px)' : 'translateY(0)',
         }}
         onMouseEnter={() => setIsHovered(true)}
@@ -40,7 +40,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
           {/* badges */}
           {product.badge && product.inStock !== false && (
-            <span className="absolute top-3 left-3 z-10 px-2.5 py-1 rounded-full text-white text-xs uppercase tracking-wide bg-[#c70fff]">
+            <span className="absolute top-3 left-3 z-10 px-2.5 py-1 rounded-full text-white text-xs uppercase tracking-wide bg-[#7c3aed]">
               {product.badge}
             </span>
           )}
@@ -79,7 +79,7 @@ export function ProductCard({ product }: ProductCardProps) {
           >
             <Heart
               className="w-4 h-4"
-              style={{ color: wishlisted ? '#c70fff' : '#9ca3af', fill: wishlisted ? '#c70fff' : 'none' }}
+              style={{ color: wishlisted ? '#7c3aed' : '#9ca3af', fill: wishlisted ? '#7c3aed' : 'none' }}
             />
           </button>
         </div>
@@ -89,7 +89,7 @@ export function ProductCard({ product }: ProductCardProps) {
           <div className="min-w-0 flex-1">
             <p
               className="truncate text-gray-800 mb-0.5 transition-colors duration-200"
-              style={{ fontSize: 13, fontWeight: 500, color: isHovered ? '#c70fff' : '' }}
+              style={{ fontSize: 13, fontWeight: 500, color: isHovered ? '#7c3aed' : '' }}
             >
               {product.name}
             </p>
@@ -99,7 +99,7 @@ export function ProductCard({ product }: ProductCardProps) {
                   ${product.originalPrice}
                 </span>
               )}
-              <span style={{ fontSize: 17, fontWeight: 800, color: '#c70fff' }}>
+              <span style={{ fontSize: 17, fontWeight: 800, color: '#7c3aed' }}>
                 ${product.price}
               </span>
             </div>
@@ -112,8 +112,8 @@ export function ProductCard({ product }: ProductCardProps) {
             className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white transition-all duration-200 hover:scale-110 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
             title="Ver producto"
             style={{
-              background: 'linear-gradient(135deg,#c70fff,#a855f7)',
-              boxShadow: '2px 2px 8px rgba(199,15,255,0.3)',
+              background: 'linear-gradient(135deg,#7c3aed,#a78bfa)',
+              boxShadow: '2px 2px 8px rgba(124,58,237,0.3)',
             }}
           >
             <Plus className="w-3.5 h-3.5" strokeWidth={3} />
@@ -121,9 +121,6 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
       </div>
 
-      {modalOpen && (
-        <QuickViewModal product={product} onClose={() => setModalOpen(false)} />
-      )}
     </>
   );
 }
