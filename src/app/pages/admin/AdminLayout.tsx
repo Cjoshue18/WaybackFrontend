@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router';
+import { NavLink, Outlet, useNavigate, Navigate } from 'react-router'; // 🛠️ Agregado Navigate
 import { LayoutDashboard, Package, Tag, Users, ShoppingBag, LogOut, Menu, X, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -12,9 +12,16 @@ const NAV = [
 ];
 
 export function AdminLayout() {
-  const { user, logout } = useAuth();
+  // 🛠️ Extraemos 'logout' además del estado del usuario administrativo
+  const { user, token, isAdmin, logout } = useAuth(); 
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // 🛡️ CONTROL DE ACCESO PERMANENTE
+  // Si no hay sesión válida o no tiene rol administrativo, se le expulsa de inmediato
+  if (!token || !isAdmin) {
+    return <Navigate to="/" replace />;
+  }
 
   const handleLogout = () => {
     logout();
@@ -80,13 +87,16 @@ export function AdminLayout() {
               style={{ width: 32, height: 32, background: '#7c3aed', borderRadius: '50%' }}
             >
               <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>
-                {user.name.charAt(0).toUpperCase()}
+                {user.name ? user.name.charAt(0).toUpperCase() : 'A'}
               </span>
             </div>
             <div className="min-w-0">
-              <p style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)', truncate: true }}
-                className="truncate">
-                {user.name}
+              {/* 🛠️ Limpiado por completo el bloque de comentarios invasores del JSX */}
+              <p 
+                className="truncate" 
+                style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}
+              >
+                {user.name || 'Administrador'}
               </p>
               <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                 Administrador

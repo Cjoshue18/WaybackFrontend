@@ -11,11 +11,7 @@ import { AdminLayout } from './pages/admin/AdminLayout';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AdminProducts } from './pages/admin/AdminProducts';
 import { AdminCategories } from './pages/admin/AdminCategories';
-<<<<<<< HEAD
-import { AdminClients } from './pages/admin/AdminClients';
-=======
-import { AdminUsers } from './pages/admin/AdminUsers';
->>>>>>> 5f1ab9082ade012e692c6e502bed76d81603c5d5
+import { AdminClients } from './pages/admin/AdminClients'; // 🛠️ Conservamos tu componente de Clientes
 import { AdminOrders } from './pages/admin/AdminOrders';
 
 export const router = createBrowserRouter([
@@ -37,13 +33,10 @@ export const router = createBrowserRouter([
     Component: AdminLayout,
     children: [
       { index: true,             Component: AdminDashboard },
+      { path: 'dashboard',       Component: AdminDashboard }, // ✨ Agrega esta línea aquí
       { path: 'productos',       Component: AdminProducts },
       { path: 'categorias',      Component: AdminCategories },
-<<<<<<< HEAD
-      { path: 'usuarios',        Component: AdminClients },
-=======
-      { path: 'usuarios',        Component: AdminUsers },
->>>>>>> 5f1ab9082ade012e692c6e502bed76d81603c5d5
+      { path: 'clientes',        Component: AdminClients }, 
       { path: 'pedidos',         Component: AdminOrders },
     ],
   },

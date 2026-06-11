@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Eye, EyeOff, ArrowRight, Loader } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router'; // 🚨 IMPORTA ESTO ARRIBA
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -15,25 +16,33 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [showPass, setShowPass] = useState(false);
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState('');
+  const navigate = useNavigate(); // 🚨 DECLARA EL NAVIGATE
+
+  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
+  setError('');
+  setLoading(true);
 
-    await new Promise((r) => setTimeout(r, 700));
+  const result = await login(email, password);
+  setLoading(false);
 
-    const result = login(email, password);
-    setLoading(false);
-
-    if (!result.success) {
-      setError(result.error ?? 'Error al iniciar sesión.');
-      return;
+  if (!result.success) {
+    setError(result.error ?? 'Error al iniciar sesión.');
+    return;
     }
 
-    onClose();
-    resetForm();
-  };
+onClose();
+  resetForm();
+
+  // 🚨 REDIRECCIÓN EN VIVO SEGÚN EL ROL DEVUELTO POR LA BD
+  if (result.role === 'admin') {
+    navigate('/admin/dashboard'); // Si es admin, lo mandamos al panel
+  } else {
+    navigate('/'); // Si es cliente, se queda en la tienda
+  }
+};
 
   const resetForm = () => {
     setEmail('');
@@ -199,7 +208,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 onMouseLeave={(e) => { if (!loading) (e.currentTarget as HTMLButtonElement).style.background = '#7c3aed'; }}
               >
                 {loading
-                  ? <><Loader style={{ width: 14, height: 14 }} className="animate-spin" /> Verificando…</>
+                  ? <><Loader style={{ width: 14, height: 14 }} className="animate-spin" /> Conectando al servidor…</>
                   : <><span>Ingresar</span><ArrowRight style={{ width: 14, height: 14 }} /></>
                 }
               </button>
@@ -214,13 +223,13 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
               Clientes y administradores usan el mismo login.
             </p>
 
-            {/* demo hint */}
+            {/* 🛠️ Actualizado: Ya no es local, avisa que conecta a la API de Render */}
             <div
               className="mt-4 p-3 text-center"
-              style={{ background: '#fafafa', border: '1px solid #f3f4f6' }}
+              style={{ background: '#fafafa', border: '1px solid #e5e7eb' }}
             >
-              <p style={{ fontSize: 11, color: '#9ca3af' }}>
-                <strong style={{ color: '#7c3aed' }}>Admin demo:</strong> admin@wayback.com · admin123
+              <p style={{ fontSize: 11, color: '#6b7280' }}>
+                Conectado en vivo a la base de datos de <span className="font-semibold text-[#7c3aed]">Y2KVault API</span>.
               </p>
             </div>
           </div>

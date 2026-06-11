@@ -31,14 +31,14 @@ export function AdminCategories() {
   useEffect(() => {
     let active = true;
     getCategorias()
-      .then((remote) => {
+      .then((remote:any) => {
         if (!active) return;
         if (remote.length > 0) {
           setCats(remote);
           setError(null);
         }
       })
-      .catch((err) => {
+      .catch((err:any) => {
         if (!active) return;
         setError('No se pudo cargar las categorías desde el backend.');
         console.error(err);

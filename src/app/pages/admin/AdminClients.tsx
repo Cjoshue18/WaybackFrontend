@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Search, Edit2, Trash2, X, Plus } from 'lucide-react';
-import { getClientes } from '../../../lib/api';
+// 🛠️ Importamos los métodos CRUD reales que creamos en tu api.ts
+import { getClientes, createCliente, updateCliente, deleteCliente } from '@/lib/api';
 
 interface Cliente {
   cli_id: number;
@@ -35,44 +36,79 @@ export function AdminClients() {
   );
 
   const openAdd = () => { setEditing(null); setForm(EMPTY_FORM); setShowForm(true); };
+  
   const openEdit = (c: Cliente) => {
     setEditing(c);
-    setForm({ cli_nombre: c.cli_nombre, cli_apellido: c.cli_apellido, cli_email: c.cli_email, cli_telefono: c.cli_telefono, cli_documento_tipo: c.cli_documento_tipo, cli_documento: c.cli_documento });
+    setForm({ 
+      cli_nombre: c.cli_nombre, 
+      cli_apellido: c.cli_apellido, 
+      cli_email: c.cli_email, 
+      cli_telefono: c.cli_telefono, 
+      cli_documento_tipo: c.cli_documento_tipo, 
+      cli_documento: c.cli_documento 
+    });
     setShowForm(true);
+  };
+
+  // Función reutilizable para refrescar la grilla desde el servidor de Render
+  const loadRemoteData = async (isActive: boolean) => {
+    try {
+      const remote = await getClientes();
+      if (isActive) {
+        setClients(remote);
+        setError(null);
+      }
+    } catch (err) {
+      if (isActive) {
+        setError('No se pudieron cargar los clientes. Verifica tus permisos de administrador.');
+      }
+    } finally {
+      if (isActive) setLoading(false);
+    }
   };
 
   useEffect(() => {
     let active = true;
-    getClientes()
-      .then((remote) => {
-        if (!active) return;
-        setClients(remote);
-        setError(null);
-      })
-      .catch((err) => {
-        if (!active) return;
-        setError('No se pudo cargar los clientes desde el backend.');
-        console.error(err);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+    setLoading(true);
+    loadRemoteData(active);
     return () => { active = false; };
   }, []);
 
-  const handleSave = (e: React.FormEvent) => {
+  // 🛠️ GUARDAR REAL (POST / PUT) CONECTADO CON EL BACKEND
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editing) {
-      setClients((prev) => prev.map((c) => c.cli_id === editing.cli_id ? { ...c, ...form } : c));
-    } else {
-      setClients((prev) => [...prev, { cli_id: Date.now(), ...form, cli_fecha_registro: new Date().toLocaleDateString('es-PE') }]);
+    setError(null);
+    setLoading(true);
+    try {
+      if (editing) {
+        // Ejecuta petición PUT pasándole el Token de forma transparente
+        await updateCliente(editing.cli_id, form);
+      } else {
+        // Ejecuta petición POST para insertar en la Base de Datos
+        await createCliente(form);
+      }
+      setShowForm(false);
+      await loadRemoteData(true); // Recarga datos frescos del servidor
+    } catch (err) {
+      setError('Error al intentar guardar los datos del cliente en el servidor.');
+      setLoading(false);
     }
-    setShowForm(false);
   };
 
-  const handleDelete = (id: number) => {
-    setClients((prev) => prev.filter((c) => c.cli_id !== id));
-    setDeleteId(null);
+  // 🛠️ ELIMINAR REAL (DELETE) CONECTADO CON EL BACKEND
+  const handleDelete = async (id: number) => {
+    setError(null);
+    setLoading(true);
+    try {
+      // Ejecuta petición DELETE contra Render
+      await deleteCliente(id);
+      setDeleteId(null);
+      await loadRemoteData(true); // Recarga datos limpios
+    } catch (err) {
+      setError('Error de comunicación. No se pudo eliminar el registro del servidor.');
+      setLoading(false);
+      setDeleteId(null);
+    }
   };
 
   const f = (k: keyof typeof EMPTY_FORM, v: string) => setForm((p) => ({ ...p, [k]: v }));
@@ -114,7 +150,7 @@ export function AdminClients() {
         ) : null}
         {loading ? (
           <div className="text-center py-16">
-            <p style={{ fontSize: 14, color: '#9ca3af' }}>Cargando clientes...</p>
+            <p className="animate-pulse" style={{ fontSize: 14, color: '#9ca3af' }}>Sincronizando con el servidor seguro...</p>
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16">
@@ -141,8 +177,13 @@ export function AdminClients() {
                   <td className="px-5 py-3.5" style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>{c.cli_nombre} {c.cli_apellido}</td>
                   <td className="px-5 py-3.5" style={{ fontSize: 12, color: '#374151' }}>{c.cli_email}</td>
                   <td className="px-5 py-3.5" style={{ fontSize: 12, color: '#374151' }}>{c.cli_telefono || '—'}</td>
-                  <td className="px-5 py-3.5" style={{ fontSize: 12, color: '#374151' }}>{c.cli_documento_tipo} {c.cli_documento}</td>
-                  <td className="px-5 py-3.5" style={{ fontSize: 12, color: '#9ca3af' }}>{c.cli_fecha_registro}</td>
+                  <td className="px-5 py-3.5" style={{ fontSize: 12, color: '#374151' }}>
+                    <span className="bg-gray-100 text-gray-600 px-1 py-0.5 rounded text-[10px] font-bold mr-1">{c.cli_documento_tipo}</span>
+                    {c.cli_documento}
+                  </td>
+                  <td className="px-5 py-3.5" style={{ fontSize: 12, color: '#9ca3af' }}>
+                    {c.cli_fecha_registro ? new Date(c.cli_fecha_registro).toLocaleDateString('es-PE') : '—'}
+                  </td>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2">
                       <button onClick={() => openEdit(c)} className="p-1.5 text-gray-300 hover:text-[#7c3aed] transition-colors">
@@ -182,7 +223,7 @@ export function AdminClients() {
                     {['DNI','RUC','Pasaporte','CE'].map((t) => <option key={t}>{t}</option>)}
                   </select>
                 </FormField>
-                <FormField label="Número"><input type="text" value={form.cli_documento} onChange={(e) => f('cli_documento', e.target.value)} placeholder="12345678" className="fi" /></FormField>
+                <FormField label="Número"><input required type="text" value={form.cli_documento} onChange={(e) => f('cli_documento', e.target.value)} placeholder="12345678" className="fi" /></FormField>
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-2.5 border border-gray-200 text-gray-600" style={{ fontSize: 12 }}>Cancelar</button>
@@ -193,15 +234,20 @@ export function AdminClients() {
         </div>
       )}
 
+      {/* delete confirmation modal */}
       {deleteId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setDeleteId(null)} />
           <div className="relative z-10 bg-white p-6" style={{ maxWidth: 360, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 8 }}>¿Eliminar cliente?</h3>
-            <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 20 }}>Se eliminarán también sus pedidos y datos asociados.</p>
+            <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 20 }}>Se eliminarán también sus pedidos y datos asociados del servidor.</p>
             <div className="flex gap-3">
-              <button onClick={() => setDeleteId(null)} className="flex-1 py-2.5 border border-gray-200 text-gray-600" style={{ fontSize: 12 }}>Cancelar</button>
-              <button onClick={() => handleDelete(deleteId)} className="flex-1 py-2.5 bg-red-500 text-white hover:bg-red-600 transition-colors" style={{ fontSize: 12, fontWeight: 700 }}>Eliminar</button>
+              <div className="flex-1">
+                <button onClick={() => setDeleteId(null)} className="w-full py-2.5 border border-gray-200 text-gray-600" style={{ fontSize: 12 }}>Cancelar</button>
+              </div>
+              <div className="flex-1">
+                <button onClick={() => handleDelete(deleteId)} className="w-full py-2.5 bg-red-500 text-white hover:bg-red-600 transition-colors" style={{ fontSize: 12, fontWeight: 700 }}>Eliminar</button>
+              </div>
             </div>
           </div>
         </div>
@@ -219,4 +265,4 @@ function FormField({ label, children }: { label: string; children: React.ReactNo
       {children}
     </div>
   );
-}
+} 

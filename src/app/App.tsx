@@ -1,5 +1,5 @@
 import { RouterProvider } from 'react-router';
-import { router } from './routes';
+import { router } from './routes'; // 🔑 Encendemos el enrutador de objetos unificado
 import { AuthProvider } from './context/AuthContext';
 
 export default function App() {

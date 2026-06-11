@@ -1,3 +1,4 @@
+import { Header } from '../components/Header'; // 🚨 REGLA ADD: Importamos el Header real
 import { ImageCarousel } from '../components/ImageCarousel';
 
 const TICKER_ITEMS = [
@@ -23,6 +24,8 @@ function ProductSlot() {
 export function HomePage() {
   return (
     <div className="bg-white">
+      
+
       {/* ── Hero Carousel ── */}
       <ImageCarousel />
 
