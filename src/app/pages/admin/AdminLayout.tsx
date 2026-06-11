@@ -84,10 +84,13 @@ export function AdminLayout() {
               </span>
             </div>
             <div className="min-w-0">
-              <p style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)', truncate: true }}
-                className="truncate">
-                {user.name}
-              </p>
+              // Busca la línea 87 y cámbiala a esto:
+            <p 
+  className="truncate" 
+  style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}
+>
+  {/* El contenido de tu párrafo se queda igual */}
+</p>
               <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                 Administrador
               </p>

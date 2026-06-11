@@ -1,28 +1,21 @@
+import React from 'react';
 import { ProductCard } from './ProductCard';
 
+// 🛠️ Extraemos dinámicamente el tipo exacto de producto que 'ProductCard' exige
+type ProductCardProps = React.ComponentProps<typeof ProductCard>;
+type RealProduct = ProductCardProps['product'];
+
 interface ProductGridProps {
-  title?: string;
+  products?: RealProduct[]; // Ahora usan exactamente el mismo tipo, con id: number, image, etc.
   showViewAll?: boolean;
 }
 
-
-export function ProductGrid({ title = 'Productos', showViewAll = true }: ProductGridProps) {
+export function ProductGrid({ products = [], showViewAll }: ProductGridProps) {
   return (
-    <div className="container mx-auto px-6 py-12">
-      <div className="flex items-center justify-between mb-8">
-        <h2 className="text-3xl text-[#7c3aed]">{title}</h2>
-        {showViewAll && (
-          <button className="text-[#7c3aed] hover:text-[#7c3aed] transition-colors">
-            Ver todo →
-          </button>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {products.map((product) => (
-          <ProductCard key={product.id} product={product} />
-        ))}
-      </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      {products.map((product) => (
+        <ProductCard key={product.id} product={product} />
+      ))}
     </div>
   );
 }
