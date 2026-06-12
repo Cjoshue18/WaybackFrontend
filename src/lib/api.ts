@@ -27,9 +27,9 @@ export interface Cliente {
 // ── INTERFACES PARA PRODUCTOS ──
 export interface ProductoApi {
   pro_id?: number; proID?: number; id?: number;
-  pro_nombre?: string; proNombre?: string; name?: string;
-  pro_precio?: number; proPrecio?: number; price?: number;
-  pro_imagen?: string; proImagen?: string; image?: string;
+  pro_nombre?: string; proNombre?: string; nombre?: string; name?: string; // ✨ Añadido 'nombre'
+  pro_precio?: number; proPrecio?: number; precio?: number; price?: number; // ✨ Añadido 'precio'
+  pro_imagen?: string; proImagen?: string; imagen?: string; image?: string; // ✨ Añadido 'imagen'
   pro_sexo?: string; sexo?: string;
   pro_tallas?: string | string[]; tallas?: string[];
   pro_colores?: string | number[]; colors?: number[];
@@ -78,13 +78,15 @@ const parseProducto = (item: ProductoApi): Product => {
 
   return {
     id: Number(item.pro_id ?? item.proID ?? item.id ?? 0),
-    name: String(item.pro_nombre ?? item.proNombre ?? item.name ?? 'Producto Sin Nombre'),
-    price: Number(item.pro_precio ?? item.proPrecio ?? item.price ?? 0),
-    image: String(item.pro_imagen ?? item.proImagen ?? item.image ?? 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=500'),
+    // 🛠️ Ahora lee correctamente 'nombre', 'precio' e 'imagen' del JSON real del backend
+    name: String(item.pro_nombre ?? item.proNombre ?? item.nombre ?? item.name ?? 'Producto Sin Nombre'),
+    price: Number(item.pro_precio ?? item.proPrecio ?? item.precio ?? item.price ?? 0),
+    image: String(item.pro_imagen ?? item.proImagen ?? item.imagen ?? item.image ?? 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=500'),
     sexo: String(item.pro_sexo ?? item.sexo ?? 'unisex').toLowerCase(),
     tallas: listaTallas,
     colors: listaColores,
-    inStock: item.inStock ?? (Number(item.pro_stock ?? item.stock ?? 0) > 0),
+    // 🛡️ Si el servidor no envía stock en este endpoint, asumimos true para que no salga "AGOTADO" por defecto
+    inStock: item.inStock ?? (item.pro_stock !== undefined || item.stock !== undefined ? Number(item.pro_stock ?? item.stock) > 0 : true),
   };
 };
 
@@ -152,6 +154,19 @@ export async function getProductos(): Promise<Product[]> {
     return Array.isArray(data) ? data.map(parseProducto) : [];
   } catch (error) {
     console.error("Error fetching products from API, returning empty array:", error);
+    return [];
+  }
+}
+
+// ── FILTRAR PRODUCTOS POR CATEGORÍA ──
+export async function getProductosPorCategoria(categoryId: number | string): Promise<Product[]> {
+  // Conecta exactamente con el endpoint de tu servidor de Render
+  const url = `${API_BASE}/api/productos/categoria=${categoryId}`;
+  try {
+    const data = await fetchJson<ProductoApi[]>(url);
+    return Array.isArray(data) ? data.map(parseProducto) : [];
+  } catch (error) {
+    console.error(`Error cargando productos de la categoría ${categoryId}:`, error);
     return [];
   }
 }

@@ -78,7 +78,7 @@ onClose();
           style={{ width: 400, flexShrink: 0, background: '#0a0a0a', overflow: 'hidden' }}
         >
           <img
-            src="https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=800&q=90"
+            src="https://i.pinimg.com/736x/66/fc/b0/66fcb043002f1f21659c0d53341ce73f.jpg"
             alt="Wayback editorial"
             className="absolute inset-0 w-full h-full object-cover"
             style={{ opacity: 0.5 }}

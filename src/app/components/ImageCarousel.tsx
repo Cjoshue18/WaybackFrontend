@@ -4,21 +4,21 @@ import { useNavigate } from 'react-router';
 
 const slides = [
   {
-    url: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=1600&q=85',
+    url: 'https://i.pinimg.com/736x/ff/04/ca/ff04cade02c3a1e4404176f243c507c4.jpg',
     eyebrow: 'Wayback · SS25',
     title: 'No es vintage.\nEs eterno.',
     cta: 'Explorar',
     ctaPath: '/categoria/camisetas',
   },
   {
-    url: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1600&q=85',
+    url: 'https://i.pinimg.com/736x/f5/2d/59/f52d5950ebe748ecc5e3c02272da26ca.jpg',
     eyebrow: 'Colección Denim',
     title: 'Construido\npara quedar.',
     cta: 'Ver Sets Denim',
     ctaPath: '/categoria/sets-denim',
   },
   {
-    url: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1600&q=85',
+    url: 'https://i.pinimg.com/1200x/63/6c/75/636c75518cd7ce7266abbdbfc956a1b7.jpg5',
     eyebrow: 'Wayback Sets',
     title: 'Vestir fácil.\nDestacar siempre.',
     cta: 'Ver Colecciones',
