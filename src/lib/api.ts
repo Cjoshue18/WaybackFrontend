@@ -27,13 +27,12 @@ export interface Cliente {
 // ── INTERFACES PARA PRODUCTOS ──
 export interface ProductoApi {
   pro_id?: number; proID?: number; id?: number;
-  pro_nombre?: string; proNombre?: string; nombre?: string; name?: string; // ✨ Añadido 'nombre'
-  pro_precio?: number; proPrecio?: number; precio?: number; price?: number; // ✨ Añadido 'precio'
-  pro_imagen?: string; proImagen?: string; imagen?: string; image?: string; // ✨ Añadido 'imagen'
+  pro_nombre?: string; proNombre?: string; nombre?: string; name?: string;
+  pro_precio?: number; proPrecio?: number; precio?: number; price?: number;
+  pro_imagen?: string; proImagen?: string; imagen?: string; image?: string;
   pro_sexo?: string; sexo?: string;
-  pro_tallas?: string | string[]; tallas?: string[];
-  pro_colores?: string | number[]; colors?: number[];
-  pro_stock?: number; inStock?: boolean; stock?: number;
+  pro_stock?: number; stock?: number;
+  cat_id?: number; catID?: number; categoryId?: number;
 }
 
 export interface Product {
@@ -41,112 +40,34 @@ export interface Product {
   name: string;
   price: number;
   image: string;
+  category: string;
   sexo: string;
-  tallas: string[];
-  colors: number[];
-  inStock: boolean;
+  stock: number;
 }
 
-// ── PARSERS / MAPEADORES ──
-const parseCategoria = (item: CategoriaApi): Categoria => ({
-  cat_id: Number(item.catID ?? item.cat_id ?? 0),
-  cat_nombre: String(item.catNombre ?? item.cat_nombre ?? ''),
-});
-
-const parseCliente = (item: ClienteApi): Cliente => ({
-  cli_id: Number(item.cli_id ?? item.id ?? 0),
-  cli_nombre: String(item.cli_nombre ?? item.nombre ?? ''),
-  cli_apellido: String(item.cli_apellido ?? item.apellido ?? ''),
-  cli_email: String(item.cli_email ?? item.email ?? ''),
-  cli_telefono: String(item.cli_telefono ?? item.telefono ?? ''),
-  cli_documento_tipo: String(item.cli_documento_tipo ?? item.documento_tipo ?? item.tipo_documento ?? 'DNI'),
-  cli_documento: String(item.cli_documento ?? item.documento ?? ''),
-  cli_fecha_registro: String(item.cli_fecha_registro ?? item.fecha_registro ?? item.createdAt ?? ''),
-});
-
-const parseProducto = (item: ProductoApi): Product => {
-  let listaTallas: string[] = [];
-  if (Array.isArray(item.pro_tallas)) listaTallas = item.pro_tallas;
-  else if (Array.isArray(item.tallas)) listaTallas = item.tallas;
-  else if (typeof (item.pro_tallas ?? item.tallas) === 'string') {
-    listaTallas = (item.pro_tallas ?? item.tallas ?? '').split(',').map(s => s.trim());
-  }
-
-  let listaColores: number[] = [];
-  if (Array.isArray(item.pro_colores)) listaColores = item.pro_colores;
-  else if (Array.isArray(item.colors)) listaColores = item.colors;
-
-  return {
-    id: Number(item.pro_id ?? item.proID ?? item.id ?? 0),
-    // 🛠️ Ahora lee correctamente 'nombre', 'precio' e 'imagen' del JSON real del backend
-    name: String(item.pro_nombre ?? item.proNombre ?? item.nombre ?? item.name ?? 'Producto Sin Nombre'),
-    price: Number(item.pro_precio ?? item.proPrecio ?? item.precio ?? item.price ?? 0),
-    image: String(item.pro_imagen ?? item.proImagen ?? item.imagen ?? item.image ?? 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=500'),
-    sexo: String(item.pro_sexo ?? item.sexo ?? 'unisex').toLowerCase(),
-    tallas: listaTallas,
-    colors: listaColores,
-    // 🛡️ Si el servidor no envía stock en este endpoint, asumimos true para que no salga "AGOTADO" por defecto
-    inStock: item.inStock ?? (item.pro_stock !== undefined || item.stock !== undefined ? Number(item.pro_stock ?? item.stock) > 0 : true),
-  };
-};
-
-// ── FUNCIÓN BASE FETCH (AHORA AUTOMATIZADA CON BEARER TOKEN) ──
-async function fetchJson<T>(url: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem('wayback_auth_token');
-  
-  const headers = new Headers(options.headers);
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-  if (!headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
-  }
-
-  const response = await fetch(url, { ...options, headers });
+// ── AUXILIAR FETCH ──
+async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(url, options);
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status} ${response.statusText}`);
+    throw new Error(`HTTP error! status: ${response.status}`);
   }
-  return response.json();
+  return response.json() as Promise<T>;
 }
 
-// ── MÉTODOS DE CATEGORÍAS ──
-export async function getCategorias(): Promise<Categoria[]> {
-  const url = `${API_BASE}/api/categorias`;
-  const data = await fetchJson<CategoriaApi[]>(url);
-  return Array.isArray(data) ? data.map(parseCategoria) : [];
+// ── PARSEAR PRODUCTOS ──
+function parseProducto(p: ProductoApi): Product {
+  return {
+    id: p.pro_id ?? p.proID ?? p.id ?? 0,
+    name: p.pro_nombre ?? p.proNombre ?? p.nombre ?? p.name ?? 'Sin nombre',
+    price: p.pro_precio ?? p.proPrecio ?? p.precio ?? p.price ?? 0,
+    image: p.pro_imagen ?? p.proImagen ?? p.imagen ?? p.image ?? '',
+    category: String(p.cat_id ?? p.catID ?? p.categoryId ?? '1'),
+    sexo: p.pro_sexo ?? p.sexo ?? 'U',
+    stock: p.pro_stock ?? p.stock ?? 0
+  };
 }
 
-// ── MÉTODOS DE CLIENTES CONECTADOS A TU ENDPOINT DE POSTMAN ──
-export async function getClientes(): Promise<Cliente[]> {
-  const url = `${API_BASE}/api/admin/reportes/clientes`; // 🛠️ Ruta corregida
-  const data = await fetchJson<ClienteApi[]>(url);
-  return Array.isArray(data) ? data.map(parseCliente) : [];
-}
-
-export async function createCliente(cliente: Partial<Cliente>): Promise<Cliente> {
-  const url = `${API_BASE}/api/admin/reportes/clientes`;
-  return await fetchJson<Cliente>(url, {
-    method: 'POST',
-    body: JSON.stringify(cliente),
-  });
-}
-
-export async function updateCliente(id: number, cliente: Partial<Cliente>): Promise<Cliente> {
-  const url = `${API_BASE}/api/admin/reportes/clientes/${id}`;
-  return await fetchJson<Cliente>(url, {
-    method: 'PUT',
-    body: JSON.stringify(cliente),
-  });
-}
-
-export async function deleteCliente(id: number): Promise<{ success: boolean }> {
-  const url = `${API_BASE}/api/admin/reportes/clientes/${id}`;
-  return await fetchJson<{ success: boolean }>(url, {
-    method: 'DELETE',
-  });
-}
-
-// ── MÉTODOS DE PRODUCTOS ──
+// ── OBTENER TODOS LOS PRODUCTOS ──
 export async function getProductos(): Promise<Product[]> {
   const url = `${API_BASE}/api/productos`;
   try {
@@ -160,7 +81,6 @@ export async function getProductos(): Promise<Product[]> {
 
 // ── FILTRAR PRODUCTOS POR CATEGORÍA ──
 export async function getProductosPorCategoria(categoryId: number | string): Promise<Product[]> {
-  // Conecta exactamente con el endpoint de tu servidor de Render
   const url = `${API_BASE}/api/productos/categoria=${categoryId}`;
   try {
     const data = await fetchJson<ProductoApi[]>(url);
@@ -171,7 +91,7 @@ export async function getProductosPorCategoria(categoryId: number | string): Pro
   }
 }
 
-// ── AUTENTICACIÓN ──
+// ── AUTENTICACIÓN: LOGIN ──
 export async function loginApi(email: string, pass: string): Promise<{ success: boolean; token?: string; user?: any; error?: string }> {
   const url = `${API_BASE}/api/auth/login`; 
   try {
@@ -185,14 +105,65 @@ export async function loginApi(email: string, pass: string): Promise<{ success: 
     });
     
     const data = await res.json();
-    if (!res.ok) return { success: false, error: data.message || 'Credenciales inválidas' };
-    
-    return { 
-      success: true, 
-      token: data.tokenJWT, 
-      user: data    
-    };
+    if (!res.ok) return { success: false, error: data.message || 'Credenciales incorrectas' };
+    return { success: true, token: data.token, user: data.user };
+  } catch (error) {
+    console.error("Error en loginApi:", error);
+    return { success: false, error: 'Error de conexión con el servidor' };
+  }
+}
+
+// ── AUTENTICACIÓN: REGISTRO REESTRUCTURADO EN BASE A LO SOLICITADO ──
+export async function registerClienteApi(
+  email: string,
+  nombreUsuario: string,
+  contrasena: string,
+  nombres: string,
+  apellidos: string,
+  tipoDocumento: string,
+  documento: string
+): Promise<{ success: boolean; error?: string }> {
+  
+  const url = `${API_BASE}/api/auth/register-cliente`;
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json' 
+      },
+      // JSON estructurado con los nombres exactos en PascalCase para C#
+      body: JSON.stringify({
+        Email: email.trim().toLowerCase(),
+        NombreUsuario: nombreUsuario.trim(),
+        Contrasena: contrasena.trim(),
+        Nombres: nombres.trim(),
+        Apellidos: apellidos.trim(),
+        TipoDocumento: tipoDocumento,
+        Documento: documento.trim()
+      }),
+    });
+
+    const textData = await res.text();
+    const data = textData ? JSON.parse(textData) : {};
+
+    console.log("📥 Respuesta del Servidor C#:", { status: res.status, data });
+
+    if (!res.ok) {
+      // Si C# devuelve errores de validación estructurados (ModelState / DataAnnotations)
+      if (data.errors && typeof data.errors === 'object') {
+        const errorMessages = Object.entries(data.errors)
+          .map(([campo, mensajes]) => `${campo}: ${(mensajes as string[]).join(' ')}`)
+          .join(' | ');
+        return { success: false, error: errorMessages };
+      }
+      return { success: false, error: data.message || data.error || 'Validación fallida en el servidor.' };
+    }
+
+    return { success: true };
+
   } catch (err) {
-    return { success: false, error: 'No se pudo conectar con el servidor de autenticación.' };
+    console.error("❌ Error de red crítico:", err);
+    return { success: false, error: 'El servidor en Render está despertando o hay un problema de red. Por favor, intenta de nuevo.' };
   }
 }
