@@ -4,14 +4,14 @@ import { useNavigate } from 'react-router';
 
 const slides = [
   {
-    url: 'https://i.pinimg.com/736x/ff/04/ca/ff04cade02c3a1e4404176f243c507c4.jpg',
+    url: 'https://res.cloudinary.com/duxjpbmhs/image/upload/c_scale,w_1800,e_upscale,f_auto,q_auto/v1781326951/Newjeans_Hyein_design_by_me_%EF%B8%8E_rdualk.jpg',
     eyebrow: 'Wayback · SS25',
     title: 'No es vintage.\nEs eterno.',
     cta: 'Explorar',
     ctaPath: '/categoria/camisetas',
   },
   {
-    url: 'https://i.pinimg.com/736x/f5/2d/59/f52d5950ebe748ecc5e3c02272da26ca.jpg',
+    url: 'https://res.cloudinary.com/duxjpbmhs/image/upload/c_scale,w_1800,e_upscale,f_auto,q_auto/v1781327253/jpg_1_f6ifge.jpg',
     eyebrow: 'Colección Denim',
     title: 'Construido\npara quedar.',
     cta: 'Ver Sets Denim',

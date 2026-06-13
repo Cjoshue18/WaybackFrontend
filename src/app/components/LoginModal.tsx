@@ -6,11 +6,11 @@ import { useNavigate } from 'react-router';
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSwitchToRegister: () => void; // 🔑 AÑADE ESTA LÍNEA DE CABLEADO
 }
 
-export function LoginModal({ isOpen, onClose }: LoginModalProps) {
+export function LoginModal({ isOpen, onClose, onSwitchToRegister }: LoginModalProps) {
   const { login } = useAuth();
-
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -219,15 +219,15 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
 >
   ¿No tienes una cuenta?{' '}
   <button
-    type="button"
-    onClick={() => {
-      handleClose();
-      navigate('/registrar');
-    }}
-    className="font-bold hover:underline transition-all bg-transparent border-none p-0 cursor-pointer text-[#7c3aed]"
-  >
-    Regístrate aquí
-  </button>
+  type="button"
+  onClick={() => {
+    handleClose(); // Resetea campos e internos del modal anterior
+    onSwitchToRegister(); // 🔑 Activa la transición limpia al Modal de registro
+  }}
+  className="font-bold hover:underline bg-transparent border-none p-0 cursor-pointer text-[#7c3aed]"
+>
+  Regístrate aquí
+</button>
 </p>
 
             {/* hint */}

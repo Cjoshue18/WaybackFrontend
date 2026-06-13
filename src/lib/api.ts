@@ -58,23 +58,45 @@ export interface RegisterData {
   Documento: string;
 }
 
-// ── MÉTODO POST: REGISTRAR CLIENTE NUEVO ──
+// ── MÉTODO POST: REGISTRAR CLIENTE NUEVO (PROTEGIDO CONTRA RESPUESTAS PLAIN-TEXT) ──
 export async function registerClienteApi(data: RegisterData): Promise<{ success: boolean; error?: string }> {
   const url = `${API_BASE}/api/auth/register-cliente`;
   try {
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data), // Se envían las propiedades en PascalCase
+      body: JSON.stringify({
+        email: data.Email,
+        nombreUsuario: data.NombreUsuario,
+        contrasena: data.Contrasena,
+        nombres: data.Nombres,
+        apellidos: data.Apellidos,
+        tipoDocumento: data.TipoDocumento,
+        documento: data.Documento
+      }),
     });
 
-    const result = await res.json();
-    if (!res.ok) {
-      return { success: false, error: result.message || 'Error en el registro.' };
+    // 🔑 Verificamos si el servidor respondió con un JSON real o con texto plano (como tu error 409)
+    const contentType = res.headers.get('content-type');
+    let errorMessage = 'Error en el registro.';
+
+    if (contentType && contentType.includes('application/json')) {
+      const result = await res.json();
+      errorMessage = result.message || errorMessage;
+    } else {
+      // Si es texto plano ('plain'), lo leemos como string puro sin romper el flujo
+      const textError = await res.text();
+      errorMessage = textError || errorMessage;
     }
+
+    if (!res.ok) {
+      return { success: false, error: errorMessage };
+    }
+    
     return { success: true };
   } catch (err) {
-    return { success: false, error: 'No se pudo conectar con el servidor de registro.' };
+    // Ya no entrará aquí por culpa del formateador de texto plano del backend
+    return { success: false, error: 'No se pudo establecer conexión con el servidor de registro.' };
   }
 }
 

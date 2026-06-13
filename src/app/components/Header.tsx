@@ -3,18 +3,21 @@ import { Link, useNavigate } from 'react-router';
 import { Search, ShoppingBag, User, Heart, Menu, X, LayoutDashboard, LogOut } from 'lucide-react';
 import { CategoryMenu } from './CategoryMenu';
 import { SearchOverlay } from './SearchOverlay';
-import { LoginModal } from './LoginModal';
 import { useAuth } from '../context/AuthContext';
 
-export function Header() {
+// 🔑 DEFINIMOS LAS PROPS QUE EL CONTROLADOR GLOBAL LE PASARÁ AL HEADER
+interface HeaderProps {
+  onOpenLogin: () => void;
+}
+
+export function Header({ onOpenLogin }: HeaderProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
   const [isMobileMenuOpen,   setIsMobileMenuOpen]   = useState(false);
-  const [isSearchOpen,       setIsSearchOpen]        = useState(false);
-  const [isLoginOpen,        setIsLoginOpen]         = useState(false);
-  const [isUserMenuOpen,     setIsUserMenuOpen]      = useState(false);
+  const [isSearchOpen,       setIsSearchOpen]       = useState(false);
+  const [isUserMenuOpen,     setIsUserMenuOpen]     = useState(false);
 
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -29,7 +32,8 @@ export function Header() {
   }, []);
 
   const handleUserClick = () => {
-    if (!user) { setIsLoginOpen(true); return; }
+    // 🛠️ Cambiado: En lugar de abrir un estado local, dispara el modal global controlado por el Layout
+    if (!user) { onOpenLogin(); return; }
     setIsUserMenuOpen((v) => !v);
   };
 
@@ -50,13 +54,13 @@ export function Header() {
               to="/"
               className="tracking-[0.22em] uppercase hover:opacity-90 transition-all"
               style={{
-              fontSize: 17,
-              fontWeight: 700,
-              letterSpacing: '0.25em',
-              color: '#7c3aed'
-            }}
-          > 
-            WAYBACK
+                fontSize: 17,
+                fontWeight: 700,
+                letterSpacing: '0.25em',
+                color: '#7c3aed'
+              }}
+            > 
+              WAYBACK
             </Link>
 
             {/* desktop icons */}
@@ -217,7 +221,8 @@ export function Header() {
                 <Search className="w-4 h-4" /> Buscar
               </button>
               {!user ? (
-                <button onClick={() => { setIsMobileMenuOpen(false); setIsLoginOpen(true); }} className="flex items-center gap-2 text-[#7c3aed] tracking-widest uppercase">
+                // 🛠️ Cambiado: Mobile también aprovecha la prop controlada
+                <button onClick={() => { setIsMobileMenuOpen(false); onOpenLogin(); }} className="flex items-center gap-2 text-[#7c3aed] tracking-widest uppercase">
                   <User className="w-4 h-4" /> Iniciar sesión
                 </button>
               ) : (
@@ -236,7 +241,7 @@ export function Header() {
       </header>
 
       <SearchOverlay isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
-      <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
+      {/* 🛡️ MODAL INTERNO RETIRADO: Ahora se gestiona puramente desde RootLayout.tsx */}
     </>
   );
 }
