@@ -4,7 +4,6 @@ import { HomePage } from './pages/HomePage';
 import { CategoryPage } from './pages/CategoryPage';
 import { ContactoPage } from './pages/ContactoPage';
 import { UserProfilePage } from './pages/UserProfilePage';
-import { FavoritesPage } from './pages/FavoritesPage';
 import { CartPage } from './pages/CartPage';
 import { SearchPage } from './pages/SearchPage';
 import { RegisterPage } from './pages/RegisterPage'; // ✨ 1. IMPORTA LA PÁGINA DE REGISTRO
@@ -24,7 +23,6 @@ export const router = createBrowserRouter([
       { path: 'categoria/:categoryId', Component: CategoryPage },
       { path: 'contacto', Component: ContactoPage },
       { path: 'perfil', Component: UserProfilePage },
-      { path: 'favoritos', Component: FavoritesPage },
       { path: 'carrito', Component: CartPage },
       { path: 'buscar',  Component: SearchPage },
       { path: 'registrar', Component: RegisterPage }, // ✨ 2. CONECTA LA RUTA PÚBLICA AQUÍ

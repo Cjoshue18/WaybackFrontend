@@ -146,14 +146,7 @@ export function Header({ onOpenLogin }: HeaderProps) {
               </div>
 
               {!user && (
-                <>
-                  <Link
-                    to="/favoritos"
-                    className="p-2.5 hover:bg-gray-50 transition-colors text-gray-500 hover:text-gray-900 relative"
-                    title="Favoritos"
-                  >
-                    <Heart style={{ width: 18, height: 18 }} />
-                  </Link>
+                <>              
                   <Link
                     to="/carrito"
                     className="p-2.5 hover:bg-gray-50 transition-colors text-gray-500 hover:text-gray-900 relative"
@@ -166,9 +159,6 @@ export function Header({ onOpenLogin }: HeaderProps) {
 
               {user && user.role === 'client' && (
                 <>
-                  <Link to="/favoritos" className="p-2.5 hover:bg-gray-50 transition-colors text-gray-500 hover:text-gray-900 relative" title="Favoritos">
-                    <Heart style={{ width: 18, height: 18 }} />
-                  </Link>
                   <Link to="/carrito" className="p-2.5 hover:bg-gray-50 transition-colors text-gray-500 hover:text-gray-900 relative" title="Carrito">
                     <ShoppingBag style={{ width: 18, height: 18 }} />
                   </Link>
