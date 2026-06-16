@@ -29,31 +29,32 @@ export interface ProductoApi {
   pro_id?: number; proID?: number; id?: number;
   pro_nombre?: string; proNombre?: string; nombre?: string; name?: string; 
   pro_precio?: number; proPrecio?: number; precio?: number; price?: number; 
-  pro_precio_original?: number; precioOriginal?: number; originalPrice?: number; // 🔑 Añadido
-  pro_imagen?: string; proImagen?: string; imagen?: string; image?: string;
-  pro_imagen_alternativa?: string; proImagenHover?: string; hoverImage?: string; // 🔑 Añadido
-  badge?: string; // 🔑 Añadido
-  pro_sexo?: string; sexo?: string;
+  pro_precio_original?: number; precioOriginal?: number; originalPrice?: number;
+  pro_imagen?: string; proImagen?: string; imagen?: string; image?: string; image_url?: string; imageUrl?: string; urlImagen?: string; proImagenUrl?: string; foto?: string; proFoto?: string;
+  pro_imagen_alternativa?: string; proImagenHover?: string; hoverImage?: string;
+  badge?: string;
+  pro_sexo?: string; sexo?: string; genero?: string; proSexo?: string;
   pro_tallas?: string | string[]; tallas?: string[];
   pro_colores?: string | number[]; colors?: number[];
   pro_stock?: number; inStock?: boolean; stock?: number;
+  categoria?: string | number; categoriaId?: number; catId?: number; cat_id?: number; pro_categoria?: string | number; proCategoria?: string | number;
 }
 
 export interface Product {
   id: number;
   name: string;
   price: number;
-  originalPrice?: number; // 🔑 Añadido como opcional
   image: string;
-  hoverImage?: string;     // 🔑 Añadido como opcional
-  badge?: string;          // 🔑 Añadido como opcional
   sexo: string;
   tallas: string[];
-  colors: number[];
+  colors: (number | string)[]; // 🔑 Corregido a (number | string)[]
   inStock: boolean;
+  originalPrice?: number;
+  hoverImage?: string;    
+  badge?: string;          
+  categoria?: string | number;
 }
 
-// Interfaces para el tipado estricto del registro .NET
 export interface RegisterData {
   Email: string;
   NombreUsuario: string;
@@ -62,6 +63,15 @@ export interface RegisterData {
   Apellidos: string;
   TipoDocumento: string;
   Documento: string;
+}
+
+// ── INTERFAZ PARA FILTROS COMBINADOS (.NET QUERY PARAMS) ──
+export interface FilterOptions {
+  categoria?: string | number;
+  estilo?: string | number;
+  genero?: string;
+  precioMin?: number;
+  precioMax?: number;
 }
 
 // ── MÉTODO POST: REGISTRAR CLIENTE NUEVO ──
@@ -93,78 +103,82 @@ export async function registerClienteApi(data: RegisterData): Promise<{ success:
       errorMessage = textError || errorMessage;
     }
 
-    if (!res.ok) {
-      return { success: false, error: errorMessage };
-    }
-    
+    if (!res.ok) return { success: false, error: errorMessage };
     return { success: true };
   } catch (err) {
     return { success: false, error: 'No se pudo establecer conexión con el servidor de registro.' };
   }
 }
 
-// ── PARSERS / MAPEADORES ACTUALIZADOS ──
+// ── PARSERS / MAPEADORES ──
 const parseCategoria = (item: CategoriaApi): Categoria => ({
   cat_id: Number(item.catID ?? item.cat_id ?? 0),
   cat_nombre: String(item.catNombre ?? item.cat_nombre ?? ''),
 });
 
 const parseCliente = (item: ClienteApi): Cliente => ({
-  cli_id: Number(item.cli_id ?? item.id ?? 0),
-  cli_nombre: String(item.cli_nombre ?? item.nombre ?? ''),
-  cli_apellido: String(item.cli_apellido ?? item.apellido ?? ''),
-  cli_email: String(item.cli_email ?? item.email ?? ''),
-  cli_telefono: String(item.cli_telefono ?? item.telefono ?? ''),
-  cli_documento_tipo: String(item.cli_documento_tipo ?? item.documento_tipo ?? item.tipo_documento ?? 'DNI'),
-  cli_documento: String(item.cli_documento ?? item.documento ?? ''),
-  cli_fecha_registro: String(item.cli_fecha_registro ?? item.fecha_registro ?? item.createdAt ?? ''),
+  cli_id: Number(item.cliId ?? item.cli_id ?? item.id ?? 0),
+  cli_nombre: String(item.cliNombre ?? item.cli_nombre ?? item.nombre ?? ''),
+  cli_apellido: String(item.cliApellido ?? item.cli_apellido ?? item.apellido ?? ''),
+  cli_email: String(item.usuario?.usuEmail ?? item.cliEmail ?? item.email ?? ''),
+  cli_telefono: String(item.cliTelefono ?? item.cli_telefono ?? item.telefono ?? ''),
+  cli_documento_tipo: String(item.cliTipoDocumento ?? item.cli_documento_tipo ?? 'DNI'),
+  cli_documento: String(item.cliDocumento ?? item.cli_documento ?? ''),
+  cli_fecha_registro: String(item.usuario?.usuFechaRegistro ?? item.cliFechaRegistro ?? item.fecha_registro ?? ''),
 });
 
-const parseProducto = (item: ProductoApi): Product => {
-  let listaTallas: string[] = [];
-  if (Array.isArray(item.pro_tallas)) listaTallas = item.pro_tallas;
-  else if (Array.isArray(item.tallas)) listaTallas = item.tallas;
-  else if (typeof (item.pro_tallas ?? item.tallas) === 'string') {
-    listaTallas = (item.pro_tallas ?? item.tallas ?? '').split(',').map(s => s.trim());
+// 🎯 SOLUCIÓN AL KEY 0 E IMÁGENES ROTAS: Parser insensible a mayúsculas/minúsculas con limpiador de backslashes
+const parseProducto = (item: any): Product => {
+  const obj: Record<string, any> = {};
+  if (item && typeof item === 'object') {
+    Object.keys(item).forEach(key => { obj[key.toLowerCase()] = item[key]; });
   }
 
-  let listaColores: number[] = [];
-  if (Array.isArray(item.pro_colores)) listaColores = item.pro_colores;
-  else if (Array.isArray(item.colors)) listaColores = item.colors;
+  let listaTallas: string[] = [];
+  const rawTallas = obj['pro_tallas'] ?? obj['protallas'] ?? obj['tallas'] ?? '';
+  if (Array.isArray(rawTallas)) {
+    listaTallas = rawTallas.map(String);
+  } else if (typeof rawTallas === 'string' && rawTallas.trim() !== '') {
+    listaTallas = rawTallas.split(',').map(s => s.trim());
+  }
+
+  let listaColores: (number | string)[] = [];
+  const rawColores = obj['pro_colores'] ?? obj['procolores'] ?? obj['colors'] ?? obj['colores'] ?? [];
+  if (Array.isArray(rawColores)) {
+    listaColores = rawColores; // Ahora acepta tanto strings como números
+  }
+
+  const finalId = Number(obj['pro_id'] ?? obj['proid'] ?? obj['id'] ?? obj['idproducto'] ?? 0);
+  const safeId = finalId !== 0 ? finalId : Math.floor(Math.random() * 999999 + 100);
+
+  let finalImage = 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=500';
+  const rawImagesArray = obj['imagenesurl'] ?? obj['imagenes_url'] ?? obj['imagesurl'] ?? obj['variantes'] ?? [];
+  if (Array.isArray(rawImagesArray) && rawImagesArray.length > 0) {
+    finalImage = String(rawImagesArray[0]).trim().replace(/\\/g, '/');
+  }
 
   return {
-    id: Number(item.pro_id ?? item.proID ?? item.id ?? 0),
-    name: String(item.pro_nombre ?? item.proNombre ?? item.nombre ?? item.name ?? 'Producto Sin Nombre'),
-    price: Number(item.pro_precio ?? item.proPrecio ?? item.precio ?? item.price ?? 0),
-    // 🔑 Mapeamos los campos estéticos nuevos del JSON al tipo Product:
-    originalPrice: item.originalPrice ?? item.precioOriginal ?? item.pro_precio_original,
-    image: String(item.pro_imagen ?? item.proImagen ?? item.imagen ?? item.image ?? 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=500'),
-    hoverImage: item.hoverImage ?? item.proImagenHover ?? item.pro_imagen_alternativa,
-    badge: item.badge,
-    sexo: String(item.pro_sexo ?? item.sexo ?? 'unisex').toLowerCase(),
+    id: safeId,
+    name: String(obj['pro_nombre'] ?? obj['pronombre'] ?? obj['nombre'] ?? obj['name'] ?? 'Prenda'),
+    price: Number(obj['pro_precio'] ?? obj['proprecio'] ?? obj['precio'] ?? obj['price'] ?? 0),
+    originalPrice: obj['originalprice'] ?? obj['preciooriginal'] ?? obj['pro_precio_original'] ?? undefined,
+    image: finalImage,
+    hoverImage: undefined,
+    badge: obj['badge'] ?? undefined,
+    sexo: String(obj['pro_sexo'] ?? obj['prosexo'] ?? obj['sexo'] ?? obj['genero'] ?? 'unisex').toLowerCase(),
     tallas: listaTallas,
     colors: listaColores,
-    inStock: item.inStock ?? (item.pro_stock !== undefined || item.stock !== undefined ? Number(item.pro_stock ?? item.stock) > 0 : true),
+    inStock: typeof obj['instock'] === 'boolean' ? obj['instock'] : true,
+    categoria: obj['categoria'] ?? obj['categoriaid'] ?? obj['catid'] ?? obj['cat_id'] ?? obj['procategoria'] ?? ''
   };
 };
 
 // ── FUNCIÓN BASE FETCH ──
 async function fetchJson<T>(url: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem('wayback_auth_token');
-  
-  const headers = new Headers(options.headers);
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-  if (!headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
-  }
-
-  const response = await fetch(url, { ...options, headers });
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status} ${response.statusText}`);
-  }
-  return response.json();
+  const response = await fetch(url, options);
+  if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+  if (response.status === 204) return {} as T;
+  return await response.json();
 }
 
 // ── MÉTODOS DE CATEGORÍAS ──
@@ -174,126 +188,62 @@ export async function getCategorias(): Promise<Categoria[]> {
   return Array.isArray(data) ? data.map(parseCategoria) : [];
 }
 
-// ── MÉTODOS DE CLIENTES ──
+// ── MÉTODOS DE CLIENTES EXTRAS ──
 export async function getClientes(): Promise<Cliente[]> {
   const url = `${API_BASE}/api/admin/reportes/clientes`; 
-  const data = await fetchJson<ClienteApi[]>(url);
+  const data = await fetchJson<any[]>(url);
   return Array.isArray(data) ? data.map(parseCliente) : [];
 }
 
 export async function createCliente(cliente: Partial<Cliente>): Promise<Cliente> {
   const url = `${API_BASE}/api/admin/reportes/clientes`;
-  return await fetchJson<Cliente>(url, {
-    method: 'POST',
-    body: JSON.stringify(cliente),
-  });
+  const bodyPayload = {
+    cliNombre: cliente.cli_nombre,
+    cliApellido: cliente.cli_apellido,
+    cliDocumento: cliente.cli_documento,
+    cliTipoDocumento: cliente.cli_documento_tipo ?? 'DNI',
+    cliTelefono: cliente.cli_telefono || null,
+    cliEmail: cliente.cli_email,
+    usuario: { usuEmail: cliente.cli_email, usuUsername: cliente.cli_email?.split('@')[0] || 'user_new' }
+  };
+  return await fetchJson<Cliente>(url, { method: 'POST', body: JSON.stringify(bodyPayload) });
 }
 
 export async function updateCliente(id: number, cliente: Partial<Cliente>): Promise<Cliente> {
   const url = `${API_BASE}/api/admin/reportes/clientes/${id}`;
-  return await fetchJson<Cliente>(url, {
-    method: 'PUT',
-    body: JSON.stringify(cliente),
-  });
+  const bodyPayload = {
+    cliId: id, cliNombre: cliente.cli_nombre, cliApellido: cliente.cli_apellido,
+    cliDocumento: cliente.cli_documento, cliTipoDocumento: cliente.cli_documento_tipo,
+    cliTelefono: cliente.cli_telefono || null, cliEmail: cliente.cli_email,
+    usuario: { usuEmail: cliente.cli_email }
+  };
+  return await fetchJson<Cliente>(url, { method: 'PUT', body: JSON.stringify(bodyPayload) });
 }
 
 export async function deleteCliente(id: number): Promise<{ success: boolean }> {
   const url = `${API_BASE}/api/admin/reportes/clientes/${id}`;
-  return await fetchJson<{ success: boolean }>(url, {
-    method: 'DELETE',
-  });
+  return await fetchJson<{ success: boolean }>(url, { method: 'DELETE' });
 }
 
-// ── MAPEO INTERNO DE SEGURIDAD (Por si tu .NET espera IDs numéricos) ──
+// ── MAPEO INTERNO PARA RESOLVER IDs DE CATEGORÍAS ──
 const MAPA_CATEGORIAS_IDS: Record<string, number> = {
-  'pantalon': 1,
-  'falda': 2,
-  'shorts': 3,
-  'jogger': 4,
-  'camisetas': 5,
-  'sueteres': 6,
-  'chaquetas': 7,
-  'sets-baggy': 8,
-  'sets-denim': 9,
-  'sets-deportivos': 10,
-  'sets-tejidos': 11
+  'pantalon': 1, 'falda': 2, 'shorts': 3, 'jogger': 4, 'camisetas': 5,
+  'sueteres': 6, 'chaquetas': 7, 'sets-baggy': 8, 'sets-denim': 9,
+  'sets-deportivos': 10, 'sets-tejidos': 11
 };
 
-// ── FILTRAR PRODUCTOS POR CATEGORÍA (CON AUTO-SONDEO DE RUTAS) ──
-export async function getProductosPorCategoria(categoryId: number | string): Promise<Product[]> {
-  const normalizedId = String(categoryId).toLowerCase().trim();
-  const numericId = MAPA_CATEGORIAS_IDS[normalizedId] || null;
-
-  // 🔑 Listamos las 4 formas posibles en las que tu .NET pudo haber estructurado la URL
-  const rutasAProbar = [
-    `${API_BASE}/api/productos/categoria/${normalizedId}`, // 1. Con barra y texto (ej: /categoria/falda)
-    `${API_BASE}/api/productos/categoria=${normalizedId}`, // 2. Con igual y texto (ej: /categoria=falda)
-  ];
-
-  // Si conocemos el ID numérico correspondiente, añadimos las opciones numéricas al sondeo
-  if (numericId !== null) {
-    rutasAProbar.push(`${API_BASE}/api/productos/categoria/${numericId}`); // 3. Con barra e ID (ej: /categoria/2)
-    rutasAProbar.push(`${API_BASE}/api/productos/categoria=${numericId}`); // 4. Con igual e ID (ej: /categoria=2)
+// ── 🎯 NUEVO MÉTODO DE PRODUCTOS CON CONEXIÓN COMPLETA A FILTROS COMBINADOS DE C# ──
+export async function getProductos(filtros?: FilterOptions): Promise<Product[]> {
+  const url = new URL(`${API_BASE}/api/productos`);
+  if (filtros) {
+    Object.entries(filtros).forEach(([k, v]) => { if (v !== undefined && v !== '') url.searchParams.append(k, String(v)); });
   }
-
-  // 🚀 El bucle recorre las rutas en orden. La primera que devuelva un 200 OK gana y rompe el ciclo.
-  for (const url of rutasAProbar) {
-    try {
-      const token = localStorage.getItem('wayback_auth_token');
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch(url, { method: 'GET', headers });
-      
-      if (res.ok) {
-        const data = await res.json();
-        console.log(`🎯 [Wayback Ruteo Éxito]: Conectado con éxito a la URL: ${url}`);
-        return Array.isArray(data) ? data.map(parseProducto) : [];
-      }
-    } catch {
-      // Si una ruta da 404 o falla, continúa silenciosamente probando la siguiente
-      continue;
-    }
-  }
-
-  console.warn(`❌ [Wayback Ruteo Fallo]: Ninguna de las rutas coincidió para la categoría: ${categoryId}`);
-  return [];
+  const data = await fetchJson<any[]>(url.toString());
+  return Array.isArray(data) ? data.map(parseProducto) : [];
 }
 
-// ── MÉTODOS DE PRODUCTOS (CON INYECCIÓN DE CATEGORÍA EN CALIENTE) ──
-export async function getProductos(): Promise<Product[]> {
-  const categoriasBD = Object.keys(MAPA_CATEGORIAS_IDS);
-
-  try {
-    console.log("⏳ [Wayback Catálogo]: Unificando inventario a través del auto-sondeo...");
-
-    // 🚀 Mapeamos las promesas inyectando el ID de la categoría original en cada prenda
-    const promesas = categoriasBD.map(async (id) => {
-      const productosDeCategoria = await getProductosPorCategoria(id);
-      
-      // 🔑 AQUÍ: Le grabamos al producto a qué categoría pertenece (ej: producto.categoria = "pantalon")
-      return productosDeCategoria.map(producto => ({
-        ...producto,
-        categoria: id 
-      }));
-    });
-
-    const resultadosAnidados = await Promise.all(promesas);
-    
-    // Aplanamos la lista de listas en un único catálogo plano de prendas
-    const catalogoCompleto = resultadosAnidados.flat();
-    
-    // Eliminamos duplicados por ID para proteger la consistencia visual
-    const productosUnicos = Array.from(
-      new Map(catalogoCompleto.map(p => [p.id, p])).values()
-    ) as Product[];
-
-    return productosUnicos;
-
-  } catch (error) {
-    console.error("Error crítico en el bypass de catálogo:", error);
-    return [];
-  }
+export async function getProductosPorCategoria(categoryId: number | string): Promise<Product[]> {
+  return getProductos({ categoria: categoryId });
 }
 
 // ── AUTENTICACIÓN ──
@@ -303,20 +253,11 @@ export async function loginApi(email: string, pass: string): Promise<{ success: 
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        UsuUsernameOrEmail: email, 
-        UsuContrasena: pass 
-      }) 
+      body: JSON.stringify({ UsuUsernameOrEmail: email, UsuContrasena: pass }) 
     });
-    
     const data = await res.json();
     if (!res.ok) return { success: false, error: data.message || 'Credenciales inválidas' };
-    
-    return { 
-      success: true, 
-      token: data.tokenJWT, 
-      user: data    
-    };
+    return { success: true, token: data.tokenJWT, user: data };
   } catch (err) {
     return { success: false, error: 'No se pudo conectar con el servidor de autenticación.' };
   }

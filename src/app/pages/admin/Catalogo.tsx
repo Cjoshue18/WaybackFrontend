@@ -4,17 +4,14 @@ import { FilterSidebar } from '@/app/components/FilterSidebar';
 import { ProductCard } from '@/app/components/ProductCard'; 
 import { getProductos } from '@/lib/api';
 import type { Product } from '@/lib/api';
-import type { ProductFilters } from '@/app/types/database';
 
 export function CatalogoPage() {
-  const [productos, setProductos] = useState<any[]>([]);
+  const [productos, setProductos] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true); 
   const [searchParams, setSearchParams] = useSearchParams(); 
 
-  // Capturamos si viene alguna categoría por URL (ej. desde el inicio de la tienda)
   const categoriaUrl = searchParams.get('categoria');
   
-  // Estado de filtros extendido para recibir el array de prendas del FilterSidebar
   const [filters, setFilters] = useState<any>({
     categorias: categoriaUrl ? [categoriaUrl] : [], 
     sexo: [],
@@ -25,29 +22,37 @@ export function CatalogoPage() {
     precioMax: 500
   });
 
-  // Sincroniza los filtros si la URL cambia dinámicamente
   useEffect(() => {
-    if (categoriaUrl) {
-      setFilters((prev: any) => ({
-        ...prev,
-        categorias: prev.categorias.includes(categoriaUrl) ? prev.categorias : [...prev.categorias, categoriaUrl]
-      }));
-    }
-  }, [categoriaUrl]);
+    const cat = searchParams.get('categoria');
+    if (cat) setFilters((f: any) => ({ ...f, categorias: [cat] }));
+  }, [searchParams]);
 
-  // Consumo limpio de tu API en Render
+  // ── 🎯 CONSUMO DINÁMICO CONECTADO A LOS FILTROS DE C# ──
   useEffect(() => {
+    let active = true;
     setLoading(true);
-    getProductos()
+
+    getProductos({
+      categoria: filters.categorias.length > 0 ? filters.categorias[0] : undefined,
+      genero: filters.sexo.length > 0 ? filters.sexo[0] : undefined,
+      precioMin: filters.precioMin,
+      precioMax: filters.precioMax
+    })
       .then(res => {
-        console.log("👉 [Wayback API Debug]:", res ? res[0] : "Sin datos");
-        setProductos(res ?? []);
+        if (active) {
+          console.log("👉 [Wayback C# Catalogo Sync]:", res.length, "prendas recibidas.");
+          setProductos(res ?? []);
+        }
       })
       .catch(err => console.error("Error conectando a la API:", err))
-      .finally(() => setLoading(false));
-  }, []);
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
-  // Función de escape para limpiar filtros y URL de un solo golpe
+    return () => { active = false; };
+  }, [filters.categorias, filters.sexo, filters.precioMin, filters.precioMax]);
+
+  // Función de escape para limpiar filtros
   const resetAll = () => {
     setSearchParams({});
     setFilters({
@@ -61,67 +66,34 @@ export function CatalogoPage() {
     });
   };
 
-  // ── FILTRADO ULTRA-DEFENSIVO CONTRA LA BASE DE DATOS ──
+  // ── ESCUDO DE FILTRADO COMPLEMENTARIO LOCAL ──
   const productosFiltrados = useMemo(() => {
-    const normalizarTexto = (texto: any) => {
-      if (!texto) return "";
-      return String(texto)
-        .normalize("NFD")                     
-        .replace(/[\u0300-\u036f]/g, "")     
-        .toLowerCase()
-        .trim();
-    };
-
     return productos.filter((producto) => {
-      // 📦 A. Filtro Multi-Prendas (Categorías del Sidebar)
-      if (filters.categorias && filters.categorias.length > 0) {
-        const catProducto = producto.categoria ?? producto.categoriaNombre ?? producto.proCategoria ?? "";
-        const match = filters.categorias.some((c: string) => normalizarTexto(catProducto) === normalizarTexto(c));
+      // 🎨 Filtro de Colores (Normalizado a String para comparar con Sidebar)
+      if (filters.colors && filters.colors.length > 0) {
+        const arrayColores = Array.isArray(producto.colors) ? producto.colors.map(String) : [];
+        const match = arrayColores.some((c: string) => filters.colors.map(String).includes(c));
         if (!match) return false;
       }
 
-      // 🚻 B. Filtro de Género
-      if (filters.sexo.length > 0) {
-        const generoProducto = producto.sexo ?? producto.genero ?? producto.proSexo ?? "";
-        const match = filters.sexo.some((s: string) => normalizarTexto(generoProducto) === normalizarTexto(s));
+      // 📐 Filtro de Tallas
+      if (filters.tallas && filters.tallas.length > 0) {
+        const tallasPrenda = Array.isArray(producto.tallas) 
+          ? producto.tallas.map((t: any) => String(t).trim().toUpperCase())
+          : [];
+        const tallasSeleccionadas = filters.tallas.map((x: string) => String(x).trim().toUpperCase());
+        const match = tallasPrenda.some((t: string) => tallasSeleccionadas.includes(t));
         if (!match) return false;
       }
 
-      // 🎨 C. Filtro de Colores
-      if (filters.colors.length > 0) {
-        const coloresProducto = producto.colors ?? producto.colores ?? [];
-        const arrayColores = Array.isArray(coloresProducto) ? coloresProducto : [];
-        const match = arrayColores.some((c: any) => filters.colors.includes(Number(c)));
-        if (!match) return false;
-      }
-
-      // 📐 D. Filtro de Tallas
-      if (filters.tallas.length > 0) {
-        const tallasProducto = producto.tallas ?? producto.proTallas ?? [];
-        const arrayTallas = Array.isArray(tallasProducto) 
-          ? tallasProducto 
-          : (typeof tallasProducto === 'string' ? (tallasProducto as string).split(',') : []);
-          
-        const match = arrayTallas.some((t: string) => 
-          filters.tallas.map((x: string) => x.trim().toUpperCase()).includes(t.trim().toUpperCase())
-        );
-        if (!match) return false;
-      }
-
-      // 🛒 E. Filtro de Disponibilidad
+      // 🛒 Filtro de Disponibilidad
       if (filters.soloDisponibles) {
-        const stockVal = producto.inStock ?? producto.stock ?? producto.proStock ?? true;
-        const tieneStock = typeof stockVal === 'boolean' ? stockVal : Number(stockVal) > 0;
-        if (!tieneStock) return false;
+        if (!producto.inStock) return false;
       }
-
-      // 💵 F. Filtro de Precio Máximo
-      const precio = Number(producto.price ?? producto.precio ?? producto.proPrecio ?? 0);
-      if (precio > filters.precioMax) return false;
 
       return true;
     });
-  }, [productos, filters]);
+  }, [productos, filters.colors, filters.tallas, filters.soloDisponibles]);
 
   return (
     <div className="container mx-auto px-6 py-8 flex gap-8 min-h-[60vh]">
@@ -140,27 +112,9 @@ export function CatalogoPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {productosFiltrados.map((prod) => {
-              // 🔑 MAPEO ADAPTATIVO COMPLETO CON TODOS LOS CAMPOS EXIGIDOS POR EL TIPO 'Product'
-              const normalizedProduct: Product = {
-                id: prod.id ?? prod.proId ?? Math.random(),
-                name: prod.name ?? prod.proNombre ?? "Prenda Wayback",
-                price: Number(prod.price ?? prod.precio ?? prod.proPrecio ?? 0),
-                originalPrice: prod.originalPrice ?? prod.precioOriginal ?? prod.pro_precio_original,
-                image: prod.image ?? prod.proImagen ?? "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=500",
-                hoverImage: prod.hoverImage ?? prod.proImagenHover ?? prod.pro_imagen_alternativa,
-                badge: prod.badge,
-                // 🔑 Agregamos las propiedades faltantes que rompían el compilador:
-                sexo: String(prod.sexo ?? prod.genero ?? prod.pro_sexo ?? 'unisex').toLowerCase(),
-                tallas: Array.isArray(prod.tallas ?? prod.pro_tallas) ? (prod.tallas ?? prod.pro_tallas) : [],
-                colors: Array.isArray(prod.colors ?? prod.pro_colores) ? (prod.colors ?? prod.pro_colores) : [],
-                inStock: typeof (prod.inStock ?? prod.stock ?? prod.proStock) === 'boolean'
-                  ? (prod.inStock ?? prod.stock ?? prod.proStock)
-                  : Number(prod.stock ?? prod.proStock ?? 1) > 0
-              };
-
-              return <ProductCard key={normalizedProduct.id} product={normalizedProduct} />;
-            })}
+            {productosFiltrados.map((prod) => (
+              <ProductCard key={prod.id} product={prod} />
+            ))}
           </div>
         )}
 

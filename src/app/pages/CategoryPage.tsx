@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router';
 import { FilterSidebar } from '../components/FilterSidebar';
 import { ProductCard } from '../components/ProductCard'; 
-import { getProductosPorCategoria, type Product } from '../../lib/api'; 
+import { getProductos, Product } from '@/lib/api';
 import type { ProductFilters, SortOption } from '../types/database';
 
 // 🔑 DICCIONARIO TRADUCTOR: Mapea tanto texto como IDs numéricos al destino correcto
@@ -68,15 +68,15 @@ export function CategoryPage() {
   const label = resolvedCategory ? resolvedCategory.label : (categoryId ?? 'Categoría');
   const apiId = resolvedCategory ? resolvedCategory.id : urlKey;
 
-  // ── 🚨 LLAMADA ASÍNCRONA CORREGIDA 🚨 ──
+  // ── 🎯 LLAMADA ASÍNCRONA OPTIMIZADA CON PARÁMETROS UNIFICADOS ──
   useEffect(() => {
     if (!apiId) return;
     
     let active = true;
     setLoading(true);
 
-    // Mandamos el ID numérico resuelto ('1' en lugar de 'pantalon')
-    getProductosPorCategoria(apiId)
+    // 🔥 CORRECCIÓN: Invocamos al nuevo método pasando el ID unificado como un objeto filtro
+    getProductos({ categoria: apiId })
       .then((data) => {
         if (active) {
           setProducts(data);
