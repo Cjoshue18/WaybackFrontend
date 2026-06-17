@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Search, Edit2, Trash2, X, Plus } from 'lucide-react';
-// 🛠️ Importamos los métodos CRUD reales que creamos en tu api.ts
 import { getClientes, createCliente, updateCliente, deleteCliente } from '@/lib/api';
 
 interface Cliente {
@@ -167,7 +166,7 @@ export function AdminClients() {
               <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
                 {['ID','Nombre','Email','Teléfono','Documento','Registrado','Acciones'].map((h) => (
                   <th key={h} className="text-left px-5 py-3" style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: '#9ca3af', textTransform: 'uppercase' }}>{h}</th>
-                ))}
+                ))}S
               </tr>
             </thead>
             <tbody>

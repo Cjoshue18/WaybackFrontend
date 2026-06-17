@@ -1,15 +1,60 @@
+import { useState, useEffect } from 'react';
 import { Package, Users, ShoppingBag, Tag, TrendingUp, Clock } from 'lucide-react';
-
-const STATS = [
-  { label: 'Productos', value: '—', sub: 'Pendiente de API', icon: Package,     color: '#7c3aed', bg: 'rgba(124,58,237,0.08)' },
-  { label: 'Clientes',  value: '—', sub: 'Pendiente de API', icon: Users,       color: '#0ea5e9', bg: 'rgba(14,165,233,0.08)' },
-  { label: 'Pedidos',   value: '—', sub: 'Pendiente de API', icon: ShoppingBag, color: '#10b981', bg: 'rgba(16,185,129,0.08)' },
-  { label: 'Categorías',value: '11', sub: 'Categorías activas', icon: Tag,       color: '#f59e0b', bg: 'rgba(245,158,11,0.08)' },
-];
+// 🛠️ Importamos el método para traer los clientes reales
+import { getClientes } from '@/lib/api';
 
 const RECENT_ORDERS: { id: string; cliente: string; estado: string; total: string; fecha: string }[] = [];
 
 export function AdminDashboard() {
+  // 📊 Estados para almacenar los contadores dinámicos
+  const [clientCount, setClientCount] = useState<string>('—');
+  const [dbStatus, setDbStatus] = useState<{ status: string; ok: boolean }>({
+    status: 'Pendiente de conexión',
+    ok: false
+  });
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadDashboardStats() {
+      try {
+        // Ejecutamos la petición segura al backend
+        const clientes = await getClientes();
+        
+        if (active) {
+          // Guardamos la longitud del arreglo (cantidad de clientes)
+          setClientCount(clientes.length.toString());
+          // Si pudimos traer los clientes, significa que la Base de Datos está respondiendo perfectamente
+          setDbStatus({ status: 'Activa', ok: true });
+        }
+      } catch (err) {
+        console.error("Error al cargar las estadísticas del dashboard:", err);
+        if (active) {
+          setClientCount('Error');
+          setDbStatus({ status: 'Error de enlace', ok: false });
+        }
+      }
+    }
+
+    loadDashboardStats();
+    return () => { active = false; };
+  }, []);
+
+  // 📐 Definimos la estructura de las tarjetas dentro del componente para que lean los estados en vivo
+  const STATS = [
+    { label: 'Productos', value: '—', sub: 'Pendiente de API', icon: Package,     color: '#7c3aed', bg: 'rgba(124,58,237,0.08)' },
+    { 
+      label: 'Clientes',  
+      value: clientCount, 
+      sub: clientCount !== '—' && clientCount !== 'Error' ? 'Sincronizado con la BD' : 'Pendiente de API', 
+      icon: Users,       
+      color: '#0ea5e9', 
+      bg: 'rgba(14,165,233,0.08)' 
+    },
+    { label: 'Pedidos',   value: '—', sub: 'Pendiente de API', icon: ShoppingBag, color: '#10b981', bg: 'rgba(16,185,129,0.08)' },
+    { label: 'Categorías',value: '11', sub: 'Categorías activas', icon: Tag,       color: '#f59e0b', bg: 'rgba(245,158,11,0.08)' },
+  ];
+
   return (
     <div>
       {/* page header */}
@@ -110,7 +155,7 @@ export function AdminDashboard() {
 
           <div className="flex flex-col gap-4">
             {[
-              { label: 'Base de datos', status: 'Pendiente de conexión', ok: false },
+              { label: 'Base de datos', status: dbStatus.status, ok: dbStatus.ok },
               { label: 'API de productos', status: 'Pendiente de conexión', ok: false },
               { label: 'Stripe Payments', status: 'Pendiente de conexión', ok: false },
               { label: 'Panel admin', status: 'Activo', ok: true },

@@ -120,10 +120,15 @@ const parseCliente = (item: ClienteApi): Cliente => ({
   cli_id: Number(item.cliId ?? item.cli_id ?? item.id ?? 0),
   cli_nombre: String(item.cliNombre ?? item.cli_nombre ?? item.nombre ?? ''),
   cli_apellido: String(item.cliApellido ?? item.cli_apellido ?? item.apellido ?? ''),
+  
+  // ✉️ ¡AQUÍ ESTABA EL TRUCO! Entramos al objeto 'usuario' de forma segura (?.)
   cli_email: String(item.usuario?.usuEmail ?? item.cliEmail ?? item.email ?? ''),
+  
   cli_telefono: String(item.cliTelefono ?? item.cli_telefono ?? item.telefono ?? ''),
   cli_documento_tipo: String(item.cliTipoDocumento ?? item.cli_documento_tipo ?? 'DNI'),
   cli_documento: String(item.cliDocumento ?? item.cli_documento ?? ''),
+  
+  // 📅 La fecha también la rescatamos desde el objeto anidado 'usuario'
   cli_fecha_registro: String(item.usuario?.usuFechaRegistro ?? item.cliFechaRegistro ?? item.fecha_registro ?? ''),
 });
 
@@ -173,12 +178,41 @@ const parseProducto = (item: any): Product => {
   };
 };
 
-// ── FUNCIÓN BASE FETCH ──
+
+// ── FUNCIÓN BASE FETCH (AHORA AUTOMATIZADA CON BEARER TOKEN) ──
 async function fetchJson<T>(url: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(url, options);
-  if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-  if (response.status === 204) return {} as T;
-  return await response.json();
+  const token = localStorage.getItem('wayback_auth_token');
+  
+  const headers = new Headers(options.headers);
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  if (!headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const response = await fetch(url, { ...options, headers });
+  
+  // 🚨 TRAMPA DE DIAGNÓSTICO: Intercepta el error real de .NET antes del catch
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Sin respuesta del servidor');
+    alert(
+      `❌ ¡ERROR EN LA PETICIÓN CONTRA EL BACKEND!\n\n` +
+      `Método: ${options.method ?? 'GET'}\n` +
+      `Status HTTP: ${response.status} ${response.statusText}\n` +
+      `URL: ${url}\n\n` +
+      `Lo que responde C#:\n${errorBody}`
+    );
+    throw new Error(`Request failed: ${response.status} ${response.statusText}`);
+  }
+
+  // Si el servidor responde con 204 (No Content) o no hay contenido, devolvemos un objeto vacío seguro
+  if (response.status === 204) {
+    return {} as T;
+  }
+  
+  const text = await response.text();
+  return text ? JSON.parse(text) : ({} as T);
 }
 
 // ── MÉTODOS DE CATEGORÍAS ──
@@ -188,49 +222,64 @@ export async function getCategorias(): Promise<Categoria[]> {
   return Array.isArray(data) ? data.map(parseCategoria) : [];
 }
 
-// ── MÉTODOS DE CLIENTES EXTRAS ──
+// ── MÉTODOS DE CLIENTES CONECTADOS A TU ENDPOINT DE POSTMAN ──
 export async function getClientes(): Promise<Cliente[]> {
-  const url = `${API_BASE}/api/admin/reportes/clientes`; 
-  const data = await fetchJson<any[]>(url);
+  const url = `${API_BASE}/api/admin/reportes/clientes`;
+  const data = await fetchJson<ClienteApi[]>(url);
   return Array.isArray(data) ? data.map(parseCliente) : [];
 }
 
 export async function createCliente(cliente: Partial<Cliente>): Promise<Cliente> {
   const url = `${API_BASE}/api/admin/reportes/clientes`;
+  
   const bodyPayload = {
     cliNombre: cliente.cli_nombre,
     cliApellido: cliente.cli_apellido,
     cliDocumento: cliente.cli_documento,
     cliTipoDocumento: cliente.cli_documento_tipo ?? 'DNI',
     cliTelefono: cliente.cli_telefono || null,
+    // Enviamos el email plano y estructurado para satisfacer cualquier variante del DTO de C#
     cliEmail: cliente.cli_email,
-    usuario: { usuEmail: cliente.cli_email, usuUsername: cliente.cli_email?.split('@')[0] || 'user_new' }
+    usuario: {
+      usuEmail: cliente.cli_email,
+      usuUsername: cliente.cli_email?.split('@')[0] || 'user_new'
+    }
   };
-  return await fetchJson<Cliente>(url, { method: 'POST', body: JSON.stringify(bodyPayload) });
+
+  return await fetchJson<Cliente>(url, {
+    method: 'POST',
+    body: JSON.stringify(bodyPayload),
+  });
 }
 
 export async function updateCliente(id: number, cliente: Partial<Cliente>): Promise<Cliente> {
   const url = `${API_BASE}/api/admin/reportes/clientes/${id}`;
+  
   const bodyPayload = {
-    cliId: id, cliNombre: cliente.cli_nombre, cliApellido: cliente.cli_apellido,
-    cliDocumento: cliente.cli_documento, cliTipoDocumento: cliente.cli_documento_tipo,
-    cliTelefono: cliente.cli_telefono || null, cliEmail: cliente.cli_email,
-    usuario: { usuEmail: cliente.cli_email }
+    cliId: id,
+    cliNombre: cliente.cli_nombre,
+    cliApellido: cliente.cli_apellido,
+    cliDocumento: cliente.cli_documento,
+    cliTipoDocumento: cliente.cli_documento_tipo,
+    cliTelefono: cliente.cli_telefono || null,
+    cliEmail: cliente.cli_email,
+    usuario: {
+      usuEmail: cliente.cli_email
+    }
   };
-  return await fetchJson<Cliente>(url, { method: 'PUT', body: JSON.stringify(bodyPayload) });
+
+  return await fetchJson<Cliente>(url, {
+    method: 'PUT',
+    body: JSON.stringify(bodyPayload),
+  });
 }
 
 export async function deleteCliente(id: number): Promise<{ success: boolean }> {
   const url = `${API_BASE}/api/admin/reportes/clientes/${id}`;
-  return await fetchJson<{ success: boolean }>(url, { method: 'DELETE' });
+  return await fetchJson<{ success: boolean }>(url, {
+    method: 'DELETE',
+  });
 }
-
-// ── MAPEO INTERNO PARA RESOLVER IDs DE CATEGORÍAS ──
-const MAPA_CATEGORIAS_IDS: Record<string, number> = {
-  'pantalon': 1, 'falda': 2, 'shorts': 3, 'jogger': 4, 'camisetas': 5,
-  'sueteres': 6, 'chaquetas': 7, 'sets-baggy': 8, 'sets-denim': 9,
-  'sets-deportivos': 10, 'sets-tejidos': 11
-};
 
 // ── 🎯 NUEVO MÉTODO DE PRODUCTOS CON CONEXIÓN COMPLETA A FILTROS COMBINADOS DE C# ──
 export async function getProductos(filtros?: FilterOptions): Promise<Product[]> {
