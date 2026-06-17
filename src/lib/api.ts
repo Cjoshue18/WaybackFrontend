@@ -35,6 +35,18 @@ export interface Cliente {
   cli_fecha_registro: string;
 }
 
+export interface EstiloApi {
+  estID?: number;
+  estNombre?: string;
+  est_id?: number;
+  est_nombre?: string;
+}
+
+export interface Estilo {
+  est_id: number;
+  est_nombre: string;
+}
+
 const parseCategoria = (item: CategoriaApi): Categoria => ({
   cat_id: Number(item.catID ?? item.cat_id ?? 0),
   cat_nombre: String(item.catNombre ?? item.cat_nombre ?? ''),
@@ -51,8 +63,13 @@ const parseCliente = (item: ClienteApi): Cliente => ({
   cli_fecha_registro: String(item.cli_fecha_registro ?? item.fecha_registro ?? item.createdAt ?? ''),
 });
 
-async function fetchJson<T>(url: string): Promise<T> {
-  const response = await fetch(url);
+const parseEstilo = (item: EstiloApi): Estilo => ({
+  est_id: Number(item.estID ?? item.est_id ?? 0),
+  est_nombre: String(item.estNombre ?? item.est_nombre ?? ''),
+});
+
+async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(url, options);
   if (!response.ok) {
     throw new Error(`Request failed: ${response.status} ${response.statusText}`);
   }
@@ -69,4 +86,36 @@ export async function getClientes(): Promise<Cliente[]> {
   const url = `${API_BASE}/api/admin/clientes`;
   const data = await fetchJson<ClienteApi[]>(url);
   return Array.isArray(data) ? data.map(parseCliente) : [];
+}
+
+export async function getEstilos(): Promise<Estilo[]> {
+  const url = `${API_BASE}/api/estilos`;
+  const data = await fetchJson<EstiloApi[]>(url);
+  return Array.isArray(data) ? data.map(parseEstilo) : [];
+}
+
+export async function createEstilo(estilo: { est_nombre: string }): Promise<Estilo> {
+  const url = `${API_BASE}/api/estilos`;
+  const data = await fetchJson<EstiloApi>(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ est_nombre: estilo.est_nombre }),
+  });
+  return parseEstilo(data);
+}
+
+export async function updateEstilo(id: number, estilo: { est_nombre: string }): Promise<Estilo> {
+  const url = `${API_BASE}/api/estilos/${id}`;
+  const data = await fetchJson<EstiloApi>(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ est_nombre: estilo.est_nombre }),
+  });
+  return parseEstilo(data);
+}
+
+export async function deleteEstilo(id: number): Promise<void> {
+  const url = `${API_BASE}/api/estilos/${id}`;
+  const response = await fetch(url, { method: 'DELETE' });
+  if (!response.ok) throw new Error('Error al eliminar estilo');
 }
