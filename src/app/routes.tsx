@@ -11,9 +11,10 @@ import { AdminLayout } from './pages/admin/AdminLayout';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AdminProducts } from './pages/admin/AdminProducts';
 import { AdminCategories } from './pages/admin/AdminCategories';
+import { AdminEstilos } from './pages/admin/AdminEstilos';
 import { AdminClients } from './pages/admin/AdminClients'; 
 import { AdminOrders } from './pages/admin/AdminOrders';
-import { CatalogoPage } from './pages/admin/Catalogo'; // 🔑 1. IMPORTAMOS TU NUEVO CATÁLOGO
+import { CatalogoPage } from './pages/Catalogo'; // 🔑 1. IMPORTAMOS TU NUEVO CATÁLOGO
 
 export const router = createBrowserRouter([
   {
@@ -38,6 +39,7 @@ export const router = createBrowserRouter([
       { path: 'dashboard',       Component: AdminDashboard }, 
       { path: 'productos',       Component: AdminProducts },
       { path: 'categorias',      Component: AdminCategories },
+      { path: 'estilos',         Component: AdminEstilos },
       { path: 'clientes',        Component: AdminClients }, 
       { path: 'pedidos',         Component: AdminOrders },
     ],

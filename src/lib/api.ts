@@ -11,6 +11,19 @@ export interface Categoria {
   cat_nombre: string;
 }
 
+export interface EstiloApi {
+  estID?: number;
+  estNombre?: string;
+  est_id?: number;
+  est_nombre?: string;
+}
+
+export interface Estilo {
+  est_id: number;
+  est_nombre: string;
+}
+
+
 export interface ClienteApi {
   cli_id?: number;
   cliId?: number;
@@ -146,6 +159,12 @@ const parseCategoria = (item: CategoriaApi): Categoria => ({
   cat_nombre: String(item.catNombre ?? item.cat_nombre ?? ''),
 });
 
+
+const parseEstilo = (item: EstiloApi): Estilo => ({
+  est_id: Number(item.estID ?? item.est_id ?? 0),
+  est_nombre: String(item.estNombre ?? item.est_nombre ?? ''),
+});
+
 const parseCliente = (item: ClienteApi): Cliente => ({
   cli_id: Number(item.cliId ?? item.cli_id ?? item.id ?? 0),
   cli_nombre: String(item.cliNombre ?? item.cli_nombre ?? item.nombre ?? ''),
@@ -265,6 +284,71 @@ export async function getCategorias(): Promise<Categoria[]> {
   return Array.isArray(data) ? data.map(parseCategoria) : [];
 }
 
+// ── MÉTODOS DE ESTILOS ──
+
+export async function getEstilos(): Promise<Estilo[]> {
+  const url = `${API_BASE}/api/estilos`;
+
+  const data = await fetchJson<EstiloApi[]>(url);
+
+  return Array.isArray(data)
+    ? data.map(parseEstilo)
+    : [];
+}
+
+export async function createEstilo(
+  estilo: { est_nombre: string }
+): Promise<Estilo> {
+
+  const url = `${API_BASE}/api/estilos`;
+
+  const data = await fetchJson<EstiloApi>(
+    url,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        est_nombre: estilo.est_nombre
+      })
+    }
+  );
+
+  return parseEstilo(data);
+}
+
+export async function updateEstilo(
+  id: number,
+  estilo: { est_nombre: string }
+): Promise<Estilo> {
+
+  const url = `${API_BASE}/api/estilos/${id}`;
+
+  const data = await fetchJson<EstiloApi>(
+    url,
+    {
+      method: 'PUT',
+      body: JSON.stringify({
+        est_nombre: estilo.est_nombre
+      })
+    }
+  );
+
+  return parseEstilo(data);
+}
+
+export async function deleteEstilo(
+  id: number
+): Promise<void> {
+
+  const url = `${API_BASE}/api/estilos/${id}`;
+
+  await fetchJson(
+    url,
+    {
+      method: 'DELETE'
+    }
+  );
+}
+
 // ── MÉTODOS DE CLIENTES EXTRAS ──
 export async function getClientes(): Promise<Cliente[]> {
   const url = `${API_BASE}/api/admin/reportes/clientes`; 
@@ -272,38 +356,18 @@ export async function getClientes(): Promise<Cliente[]> {
   return Array.isArray(data) ? data.map(parseCliente) : [];
 }
 
-export async function createCliente(cliente: Partial<Cliente>): Promise<Cliente> {
-  const url = `${API_BASE}/api/admin/reportes/clientes`;
-  const bodyPayload = {
-  cliNombre: cliente.cli_nombre,
-  cliApellido: cliente.cli_apellido,
-  cliDocumento: cliente.cli_documento,
-  cliTipoDocumento: cliente.cli_documento_tipo ?? 'DNI',
-  cliEmail: cliente.cli_email,
-  usuario: {
-    usuEmail: cliente.cli_email,
-    usuUsername:
-      cliente.cli_email?.split('@')[0] || 'user_new',
-  },
-};
-  return await fetchJson<Cliente>(url, { method: 'POST', body: JSON.stringify(bodyPayload) });
-}
-
 export async function updateCliente(id: number, cliente: Partial<Cliente>): Promise<Cliente> {
   const url = `${API_BASE}/api/admin/reportes/clientes/${id}`;
   const bodyPayload = {
-  cliId: id,
-  cliNombre: cliente.cli_nombre,
-  cliApellido: cliente.cli_apellido,
-  cliDocumento: cliente.cli_documento,
-  cliTipoDocumento: cliente.cli_documento_tipo,
-  cliEmail: cliente.cli_email,
-  usuario: {
-    usuEmail: cliente.cli_email,
-  },
-};
+    Nombres:        cliente.cli_nombre   ?? '',
+    Apellidos:      cliente.cli_apellido ?? '',
+    NombreUsuario:  cliente.cli_email?.split('@')[0] ?? '',   // derivado del email como username
+    Email:          cliente.cli_email    ?? '',
+    Telefono:       undefined,                                // opcional, no lo pedimos en el form
+  };
   return await fetchJson<Cliente>(url, { method: 'PUT', body: JSON.stringify(bodyPayload) });
 }
+ 
 
 export async function deleteCliente(id: number): Promise<{ success: boolean }> {
   const url = `${API_BASE}/api/admin/reportes/clientes/${id}`;

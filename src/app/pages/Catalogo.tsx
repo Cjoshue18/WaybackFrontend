@@ -67,7 +67,7 @@ export function CatalogoPage() {
     });
   };
 
-  // ── 📐 ESCUDO DE FILTRADO COMPLEMENTARIO LOCAL CORREGIDO ──
+  
   const productosFiltrados = useMemo(() => {
     // Mapa espejo id -> HEX idéntico al de tu FilterSidebar.tsx
     const MAPA_COLORS_HEX: Record<number, string> = {

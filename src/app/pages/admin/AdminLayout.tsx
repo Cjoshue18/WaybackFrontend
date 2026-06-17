@@ -3,14 +3,15 @@ import { NavLink, Outlet, useNavigate, Navigate } from 'react-router'; // 🛠�
 import { LayoutDashboard, Package, Tag, Users, ShoppingBag, LogOut, Menu, X, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-const NAV = [
-  { to: '/admin',            label: 'Dashboard',    icon: LayoutDashboard, end: true },
-  { to: '/admin/productos',  label: 'Productos',    icon: Package },
-  { to: '/admin/categorias', label: 'Categorías',   icon: Tag },
-  { to: '/admin/clientes',   label: 'Clientes',     icon: Users },
-  { to: '/admin/pedidos',    label: 'Pedidos',      icon: ShoppingBag },
-];
-
+  const NAV = [
+    { to: '/admin',            label: 'Dashboard',    icon: LayoutDashboard, end: true },
+    { to: '/admin/productos',  label: 'Productos',    icon: Package },
+    { to: '/admin/categorias', label: 'Categorías',   icon: Tag },
+    { to: '/admin/clientes',   label: 'Clientes',     icon: Users },
+    { to: '/admin/estilos',    label: 'Estilos',      icon: Tag },
+    { to: '/admin/pedidos',    label: 'Pedidos',      icon: ShoppingBag },
+  ];
+  
 export function AdminLayout() {
   // 🛠️ Extraemos 'logout' además del estado del usuario administrativo
   const { user, token, isAdmin, logout } = useAuth(); 
