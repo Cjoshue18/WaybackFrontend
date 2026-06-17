@@ -12,16 +12,46 @@ export interface Categoria {
 }
 
 export interface ClienteApi {
-  cli_id?: number; cli_nombre?: string; cli_apellido?: string;
-  cli_email?: string; cli_telefono?: string; cli_documento_tipo?: string;
-  cli_documento?: string; cli_fecha_registro?: string;
-  [key: string]: any;
+  cli_id?: number;
+  cliId?: number;
+  id?: number;
+
+  cli_nombre?: string;
+  cliNombre?: string;
+  nombre?: string;
+
+  cli_apellido?: string;
+  cliApellido?: string;
+  apellido?: string;
+
+  cli_email?: string;
+  cliEmail?: string;
+  email?: string;
+
+  cli_documento_tipo?: string;
+  cliTipoDocumento?: string;
+
+  cli_documento?: string;
+  cliDocumento?: string;
+
+  cli_fecha_registro?: string;
+  cliFechaRegistro?: string;
+  fecha_registro?: string;
+
+  usuario?: {
+    usuEmail?: string;
+    usuFechaRegistro?: string;
+  };
 }
 
 export interface Cliente {
-  cli_id: number; cli_nombre: string; cli_apellido: string;
-  cli_email: string; cli_telefono: string; cli_documento_tipo: string;
-  cli_documento: string; cli_fecha_registro: string;
+  cli_id: number;
+  cli_nombre: string;
+  cli_apellido: string;
+  cli_email: string;
+  cli_documento_tipo: string;
+  cli_documento: string;
+  cli_fecha_registro: string;
 }
 
 // ── INTERFACES PARA PRODUCTOS (ENRIQUECIDAS) ──
@@ -121,64 +151,111 @@ const parseCliente = (item: ClienteApi): Cliente => ({
   cli_nombre: String(item.cliNombre ?? item.cli_nombre ?? item.nombre ?? ''),
   cli_apellido: String(item.cliApellido ?? item.cli_apellido ?? item.apellido ?? ''),
   cli_email: String(item.usuario?.usuEmail ?? item.cliEmail ?? item.email ?? ''),
-  cli_telefono: String(item.cliTelefono ?? item.cli_telefono ?? item.telefono ?? ''),
   cli_documento_tipo: String(item.cliTipoDocumento ?? item.cli_documento_tipo ?? 'DNI'),
   cli_documento: String(item.cliDocumento ?? item.cli_documento ?? ''),
-  cli_fecha_registro: String(item.usuario?.usuFechaRegistro ?? item.cliFechaRegistro ?? item.fecha_registro ?? ''),
+  cli_fecha_registro: String(
+    item.usuario?.usuFechaRegistro ??
+    item.cliFechaRegistro ??
+    item.fecha_registro ??
+    ''
+  ),
 });
 
 // 🎯 SOLUCIÓN AL KEY 0 E IMÁGENES ROTAS: Parser insensible a mayúsculas/minúsculas con limpiador de backslashes
 const parseProducto = (item: any): Product => {
+  // Clonamos todas las llaves pasándolas a minúsculas para romper la sensibilidad de .NET
   const obj: Record<string, any> = {};
   if (item && typeof item === 'object') {
     Object.keys(item).forEach(key => { obj[key.toLowerCase()] = item[key]; });
   }
 
+  // 📐 EXTRACCIÓN ULTRA-SEGURA DE TALLAS (Busca todas las variantes posibles en el JSON)
   let listaTallas: string[] = [];
-  const rawTallas = obj['pro_tallas'] ?? obj['protallas'] ?? obj['tallas'] ?? '';
-  if (Array.isArray(rawTallas)) {
-    listaTallas = rawTallas.map(String);
+  const rawTallas = obj['tallas'] ?? obj['pro_tallas'] ?? obj['protallas'] ?? [];
+  const rawVariantes = obj['variantes'] ?? [];
+
+  if (Array.isArray(rawTallas) && rawTallas.length > 0) {
+    // Si viene como un arreglo plano ["l", "m", "s"] o un arreglo de objetos
+    listaTallas = rawTallas.map((t: any) => {
+      if (t && typeof t === 'object') return String(t.talnombre ?? t.nombre ?? t.talla ?? '');
+      return String(t);
+    });
+  } else if (Array.isArray(rawVariantes) && rawVariantes.length > 0) {
+    // Fallback si las tallas vienen únicamente inyectadas dentro de las variantes individuales
+    const tallasSet = new Set<string>();
+    rawVariantes.forEach((v: any) => {
+      if (v && (v.var_talla || v.vartalla)) tallasSet.add(String(v.var_talla ?? v.vartalla));
+    });
+    listaTallas = Array.from(tallasSet);
   } else if (typeof rawTallas === 'string' && rawTallas.trim() !== '') {
-    listaTallas = rawTallas.split(',').map(s => s.trim());
+    // Si viene como una cadena separada por comas "S,M,L"
+    listaTallas = rawTallas.split(',');
   }
 
-  let listaColores: (number | string)[] = [];
-  const rawColores = obj['pro_colores'] ?? obj['procolores'] ?? obj['colors'] ?? obj['colores'] ?? [];
+  // Normalizamos todas las tallas extraídas a MAYÚSCULAS y limpiamos espacios vacíos
+  listaTallas = listaTallas
+    .map((s: string) => s.trim().toUpperCase())
+    .filter((s: string) => s !== '');
+
+  // 🎨 EXTRACCIÓN ULTRA-SEGURA DE COLORES
+  let listaColores: string[] = [];
+  const rawColores = obj['colores'] ?? obj['pro_colores'] ?? obj['procolores'] ?? [];
+  
   if (Array.isArray(rawColores)) {
-    listaColores = rawColores; // Ahora acepta tanto strings como números
+    listaColores = rawColores.map((c: any) => String(c).trim().toUpperCase());
+  } else if (Array.isArray(rawVariantes)) {
+    const coloresSet = new Set<string>();
+    rawVariantes.forEach((v: any) => {
+      if (v && v.var_color) coloresSet.add(String(v.var_color).trim().toUpperCase());
+    });
+    listaColores = Array.from(coloresSet);
   }
 
-  const finalId = Number(obj['pro_id'] ?? obj['proid'] ?? obj['id'] ?? obj['idproducto'] ?? 0);
+  const finalId = Number(obj['pro_id'] ?? obj['proid'] ?? obj['id'] ?? 0);
   const safeId = finalId !== 0 ? finalId : Math.floor(Math.random() * 999999 + 100);
 
   let finalImage = 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=500';
-  const rawImagesArray = obj['imagenesurl'] ?? obj['imagenes_url'] ?? obj['imagesurl'] ?? obj['variantes'] ?? [];
+  const rawImagesArray = obj['imagenesurl'] ?? obj['imagenes_url'] ?? [];
   if (Array.isArray(rawImagesArray) && rawImagesArray.length > 0) {
     finalImage = String(rawImagesArray[0]).trim().replace(/\\/g, '/');
   }
 
   return {
     id: safeId,
-    name: String(obj['pro_nombre'] ?? obj['pronombre'] ?? obj['nombre'] ?? obj['name'] ?? 'Prenda'),
-    price: Number(obj['pro_precio'] ?? obj['proprecio'] ?? obj['precio'] ?? obj['price'] ?? 0),
-    originalPrice: obj['originalprice'] ?? obj['preciooriginal'] ?? obj['pro_precio_original'] ?? undefined,
+    name: String(obj['pro_nombre'] ?? obj['pronombre'] ?? obj['nombre'] ?? 'Prenda Wayback'),
+    price: Number(obj['pro_precio'] ?? obj['proprecio'] ?? obj['precio'] ?? 0),
+    originalPrice: obj['originalprice'] ?? undefined,
     image: finalImage,
-    hoverImage: undefined,
-    badge: obj['badge'] ?? undefined,
-    sexo: String(obj['pro_sexo'] ?? obj['prosexo'] ?? obj['sexo'] ?? obj['genero'] ?? 'unisex').toLowerCase(),
-    tallas: listaTallas,
-    colors: listaColores,
+    sexo: String(obj['pro_sexo'] ?? obj['sexo'] ?? 'unisex').toLowerCase(),
+    tallas: listaTallas,  // Garantizado: ["L", "M", "S", "XL"]
+    colors: listaColores, // Garantizado: ["#000000", etc.]
     inStock: typeof obj['instock'] === 'boolean' ? obj['instock'] : true,
-    categoria: obj['categoria'] ?? obj['categoriaid'] ?? obj['catid'] ?? obj['cat_id'] ?? obj['procategoria'] ?? ''
+    categoria: obj['categoria'] ?? ''
   };
 };
 
-// ── FUNCIÓN BASE FETCH ──
-async function fetchJson<T>(url: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(url, options);
-  if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-  if (response.status === 204) return {} as T;
-  return await response.json();
+// ── FUNCIÓN BASE FETCH CON INYECCIÓN DE TOKEN CORREGIDA ──
+export async function fetchJson<T>(url: string, options: RequestInit = {}): Promise<T> {    // 🔑 Leemos la llave exacta que usa tu AuthContext.tsx
+  const token = localStorage.getItem('wayback_auth_token');
+  
+  const headers = new Headers(options.headers);
+  if (token) {
+    // Inyectamos el Bearer token para que .NET lo valide y no devuelva 401
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  if (!headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const res = await fetch(url, { ...options, headers });
+  
+  if (!res.ok) {
+    throw new Error(`HTTP Error: ${res.status} en la ruta ${url}`);
+  }
+  if (res.status === 204) return {} as T;
+  
+  const text = await res.text();
+  return text ? JSON.parse(text) : ({} as T);
 }
 
 // ── MÉTODOS DE CATEGORÍAS ──
@@ -198,25 +275,33 @@ export async function getClientes(): Promise<Cliente[]> {
 export async function createCliente(cliente: Partial<Cliente>): Promise<Cliente> {
   const url = `${API_BASE}/api/admin/reportes/clientes`;
   const bodyPayload = {
-    cliNombre: cliente.cli_nombre,
-    cliApellido: cliente.cli_apellido,
-    cliDocumento: cliente.cli_documento,
-    cliTipoDocumento: cliente.cli_documento_tipo ?? 'DNI',
-    cliTelefono: cliente.cli_telefono || null,
-    cliEmail: cliente.cli_email,
-    usuario: { usuEmail: cliente.cli_email, usuUsername: cliente.cli_email?.split('@')[0] || 'user_new' }
-  };
+  cliNombre: cliente.cli_nombre,
+  cliApellido: cliente.cli_apellido,
+  cliDocumento: cliente.cli_documento,
+  cliTipoDocumento: cliente.cli_documento_tipo ?? 'DNI',
+  cliEmail: cliente.cli_email,
+  usuario: {
+    usuEmail: cliente.cli_email,
+    usuUsername:
+      cliente.cli_email?.split('@')[0] || 'user_new',
+  },
+};
   return await fetchJson<Cliente>(url, { method: 'POST', body: JSON.stringify(bodyPayload) });
 }
 
 export async function updateCliente(id: number, cliente: Partial<Cliente>): Promise<Cliente> {
   const url = `${API_BASE}/api/admin/reportes/clientes/${id}`;
   const bodyPayload = {
-    cliId: id, cliNombre: cliente.cli_nombre, cliApellido: cliente.cli_apellido,
-    cliDocumento: cliente.cli_documento, cliTipoDocumento: cliente.cli_documento_tipo,
-    cliTelefono: cliente.cli_telefono || null, cliEmail: cliente.cli_email,
-    usuario: { usuEmail: cliente.cli_email }
-  };
+  cliId: id,
+  cliNombre: cliente.cli_nombre,
+  cliApellido: cliente.cli_apellido,
+  cliDocumento: cliente.cli_documento,
+  cliTipoDocumento: cliente.cli_documento_tipo,
+  cliEmail: cliente.cli_email,
+  usuario: {
+    usuEmail: cliente.cli_email,
+  },
+};
   return await fetchJson<Cliente>(url, { method: 'PUT', body: JSON.stringify(bodyPayload) });
 }
 
@@ -233,13 +318,61 @@ const MAPA_CATEGORIAS_IDS: Record<string, number> = {
 };
 
 // ── 🎯 NUEVO MÉTODO DE PRODUCTOS CON CONEXIÓN COMPLETA A FILTROS COMBINADOS DE C# ──
+// ── 🎯 MÉTODO DE PRODUCTOS SINCRONIZADO CON LOS IDs NUMÉRICOS DE C# ──
 export async function getProductos(filtros?: FilterOptions): Promise<Product[]> {
-  const url = new URL(`${API_BASE}/api/productos`);
-  if (filtros) {
-    Object.entries(filtros).forEach(([k, v]) => { if (v !== undefined && v !== '') url.searchParams.append(k, String(v)); });
+  try {
+    const url = new URL(`${API_BASE}/api/productos`);
+
+    // Mapa maestro exacto de la base de datos de tu proyecto relacional
+    const MAPA_CATEGORIAS_IDS: Record<string, number> = {
+      'pantalon': 1,
+      'falda': 2,
+      'shorts': 3,
+      'jogger': 4,
+      'camisetas': 5,
+      'sueteres': 6,
+      'chaquetas': 7,
+      'sets-baggy': 8, 'sets baggy': 8,
+      'sets-denim': 9, 'sets denim': 9,
+      'sets-deportivos': 10, 'sets deportivos': 10,
+      'sets-tejidos': 11, 'sets tejidos': 11
+    };
+
+    if (filtros) {
+      // 1. Traducimos el texto enviado por el Sidebar a su correspondiente entero relacional
+      if (filtros.categoria !== undefined && filtros.categoria !== '') {
+        const catKey = String(filtros.categoria).toLowerCase().trim();
+        const numericId = MAPA_CATEGORIAS_IDS[catKey] ?? filtros.categoria;
+        url.searchParams.append('categoria', String(numericId));
+      }
+      
+      // 2. Anexamos el resto de variables requeridas por el controlador de C#
+      if (filtros.estilo !== undefined && filtros.estilo !== '') {
+        url.searchParams.append('estilo', String(filtros.estilo));
+      }
+      if (filtros.genero !== undefined && filtros.genero !== '') {
+        // Normalizamos el género para que coincida con el backend
+        let genVal = String(filtros.genero).toLowerCase().trim();
+        if (genVal === 'mujer') genVal = 'mujer';
+        if (genVal === 'hombre') genVal = 'hombre';
+        if (genVal === 'unisex') genVal = 'unisex';
+        url.searchParams.append('genero', genVal);
+      }
+      if (filtros.precioMin !== undefined) {
+        url.searchParams.append('precioMin', filtros.precioMin.toString());
+      }
+      if (filtros.precioMax !== undefined) {
+        url.searchParams.append('precioMax', filtros.precioMax.toString());
+      }
+    }
+
+    console.log(`📡 [Wayback API Request]: ${url.pathname}${url.search}`);
+    const data = await fetchJson<any[]>(url.toString());
+    return Array.isArray(data) ? data.map(parseProducto) : [];
+  } catch (error) {
+    console.error("Error crítico en la consulta unificada de productos:", error);
+    return [];
   }
-  const data = await fetchJson<any[]>(url.toString());
-  return Array.isArray(data) ? data.map(parseProducto) : [];
 }
 
 export async function getProductosPorCategoria(categoryId: number | string): Promise<Product[]> {

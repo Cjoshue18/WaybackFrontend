@@ -191,19 +191,10 @@ export function Header({ onOpenLogin }: HeaderProps) {
     Inicio
   </Link>
   
-  {/* 🔑 NUEVO: Enlace directo al catálogo completo */}
   <Link to="/catalogo" className="text-gray-500 hover:text-gray-900 transition-colors uppercase tracking-widest">
     Catálogo
   </Link>
 
-  <button
-    onClick={() => setIsCategoryMenuOpen((v) => !v)}
-    className="flex items-center gap-1 uppercase tracking-widest transition-colors"
-    style={{ color: isCategoryMenuOpen ? '#7c3aed' : '#6b7280' }}
-  >
-    Categorías
-    <span style={{ fontSize: 9, transform: isCategoryMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 0.2s' }}>▾</span>
-  </button>
   
   <Link to="/contacto" className="text-gray-500 hover:text-gray-900 transition-colors uppercase tracking-widest">
     Contacto

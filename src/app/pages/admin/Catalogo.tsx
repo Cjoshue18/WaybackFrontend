@@ -50,7 +50,8 @@ export function CatalogoPage() {
       });
 
     return () => { active = false; };
-  }, [filters.categorias, filters.sexo, filters.precioMin, filters.precioMax]);
+  // 🔑 CORREGIDO: Agregados filters.tallas y filters.colors para activar el ciclo de renderizado de React
+  }, [filters.categorias, filters.sexo, filters.precioMin, filters.precioMax, filters.tallas, filters.colors]); 
 
   // Función de escape para limpiar filtros
   const resetAll = () => {
@@ -66,27 +67,46 @@ export function CatalogoPage() {
     });
   };
 
-  // ── ESCUDO DE FILTRADO COMPLEMENTARIO LOCAL ──
+  // ── 📐 ESCUDO DE FILTRADO COMPLEMENTARIO LOCAL CORREGIDO ──
   const productosFiltrados = useMemo(() => {
+    // Mapa espejo id -> HEX idéntico al de tu FilterSidebar.tsx
+    const MAPA_COLORS_HEX: Record<number, string> = {
+      1: '#FFFFFF', // Blanco
+      2: '#000000', // Negro
+      3: '#0000FF', // Azul
+      4: '#008000', // Verde
+      5: '#FFFF00', // Amarillo
+      6: '#FF0000', // Rojo
+      7: '#FFC0CB', // Rosa
+      8: '#800080', // Morado
+    };
+
     return productos.filter((producto) => {
-      // 🎨 Filtro de Colores (Normalizado a String para comparar con Sidebar)
+      
+      // 🎨 1. Filtro de Colores (Mapea el ID seleccionado al HEX de la prenda)
       if (filters.colors && filters.colors.length > 0) {
-        const arrayColores = Array.isArray(producto.colors) ? producto.colors.map(String) : [];
-        const match = arrayColores.some((c: string) => filters.colors.map(String).includes(c));
+        const hexSeleccionados = filters.colors.map((id: number) => MAPA_COLORS_HEX[id] || '');
+        const arrayColoresPrenda = Array.isArray(producto.colors) ? producto.colors.map(String) : [];
+        
+        const match = arrayColoresPrenda.some((colorHex: string) => 
+          hexSeleccionados.includes(colorHex.toUpperCase())
+        );
         if (!match) return false;
       }
 
-      // 📐 Filtro de Tallas
+      // 📐 2. Filtro de Tallas ULTRA-SEGURO
       if (filters.tallas && filters.tallas.length > 0) {
         const tallasPrenda = Array.isArray(producto.tallas) 
           ? producto.tallas.map((t: any) => String(t).trim().toUpperCase())
           : [];
+
         const tallasSeleccionadas = filters.tallas.map((x: string) => String(x).trim().toUpperCase());
         const match = tallasPrenda.some((t: string) => tallasSeleccionadas.includes(t));
+        
         if (!match) return false;
       }
 
-      // 🛒 Filtro de Disponibilidad
+      // 🛒 3. Filtro de Disponibilidad (Stock)
       if (filters.soloDisponibles) {
         if (!producto.inStock) return false;
       }

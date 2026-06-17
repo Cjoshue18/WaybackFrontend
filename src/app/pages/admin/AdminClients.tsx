@@ -8,7 +8,6 @@ interface Cliente {
   cli_nombre: string;
   cli_apellido: string;
   cli_email: string;
-  cli_telefono: string;
   cli_documento_tipo: string;
   cli_documento: string;
   cli_fecha_registro: string;
@@ -17,8 +16,7 @@ interface Cliente {
 const EMPTY_CLIENTS: Cliente[] = [];
 
 const EMPTY_FORM = {
-  cli_nombre: '', cli_apellido: '', cli_email: '',
-  cli_telefono: '', cli_documento_tipo: 'DNI', cli_documento: '',
+  cli_nombre: '', cli_apellido: '', cli_email: '', cli_documento_tipo: 'DNI', cli_documento: '',
 };
 
 export function AdminClients() {
@@ -43,7 +41,6 @@ export function AdminClients() {
       cli_nombre: c.cli_nombre, 
       cli_apellido: c.cli_apellido, 
       cli_email: c.cli_email, 
-      cli_telefono: c.cli_telefono, 
       cli_documento_tipo: c.cli_documento_tipo, 
       cli_documento: c.cli_documento 
     });
@@ -51,16 +48,19 @@ export function AdminClients() {
   };
 
   // Función reutilizable para refrescar la grilla desde el servidor de Render
+  // Función reutilizable para refrescar la grilla desde el servidor de Render
   const loadRemoteData = async (isActive: boolean) => {
     try {
       const remote = await getClientes();
       if (isActive) {
-        setClients(remote);
+        // Si el servidor responde un arreglo vacío o nulo, aseguramos que caiga en un array limpio
+        setClients(remote ?? []);
         setError(null);
       }
-    } catch (err) {
+    } catch (err: any) {
       if (isActive) {
-        setError('No se pudieron cargar los clientes. Verifica tus permisos de administrador.');
+        console.error("❌ [Wayback Admin Auth Sync Error]:", err);
+        setError('No se pudieron cargar los clientes. Verifica que hayas iniciado sesión con una cuenta de Administrador válida.');
       }
     } finally {
       if (isActive) setLoading(false);
@@ -165,7 +165,7 @@ export function AdminClients() {
           <table className="w-full">
             <thead>
               <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
-                {['ID','Nombre','Email','Teléfono','Documento','Registrado','Acciones'].map((h) => (
+                {['ID','Nombre','Email','Documento','Registrado','Acciones'].map((h) => (
                   <th key={h} className="text-left px-5 py-3" style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: '#9ca3af', textTransform: 'uppercase' }}>{h}</th>
                 ))}
               </tr>
@@ -176,7 +176,6 @@ export function AdminClients() {
                   <td className="px-5 py-3.5" style={{ fontSize: 12, color: '#9ca3af' }}>#{c.cli_id}</td>
                   <td className="px-5 py-3.5" style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>{c.cli_nombre} {c.cli_apellido}</td>
                   <td className="px-5 py-3.5" style={{ fontSize: 12, color: '#374151' }}>{c.cli_email}</td>
-                  <td className="px-5 py-3.5" style={{ fontSize: 12, color: '#374151' }}>{c.cli_telefono || '—'}</td>
                   <td className="px-5 py-3.5" style={{ fontSize: 12, color: '#374151' }}>
                     <span className="bg-gray-100 text-gray-600 px-1 py-0.5 rounded text-[10px] font-bold mr-1">{c.cli_documento_tipo}</span>
                     {c.cli_documento}
@@ -216,7 +215,6 @@ export function AdminClients() {
                 <FormField label="Apellido"><input required type="text" value={form.cli_apellido} onChange={(e) => f('cli_apellido', e.target.value)} placeholder="García" className="fi" /></FormField>
               </div>
               <FormField label="Email"><input required type="email" value={form.cli_email} onChange={(e) => f('cli_email', e.target.value)} placeholder="juan@correo.com" className="fi" /></FormField>
-              <FormField label="Teléfono"><input type="tel" value={form.cli_telefono} onChange={(e) => f('cli_telefono', e.target.value)} placeholder="999 888 777" className="fi" /></FormField>
               <div className="grid grid-cols-2 gap-4">
                 <FormField label="Tipo documento">
                   <select value={form.cli_documento_tipo} onChange={(e) => f('cli_documento_tipo', e.target.value)} className="fi w-full">
