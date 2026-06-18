@@ -356,22 +356,30 @@ export async function getClientes(): Promise<Cliente[]> {
   return Array.isArray(data) ? data.map(parseCliente) : [];
 }
 
+// ── REEMPLAZA SOLO ESTAS DOS FUNCIONES EN TU api.ts ──
+
 export async function updateCliente(id: number, cliente: Partial<Cliente>): Promise<Cliente> {
   const url = `${API_BASE}/api/admin/reportes/clientes/${id}`;
   const bodyPayload = {
-    Nombres:        cliente.cli_nombre   ?? '',
-    Apellidos:      cliente.cli_apellido ?? '',
-    NombreUsuario:  cliente.cli_email?.split('@')[0] ?? '',   // derivado del email como username
-    Email:          cliente.cli_email    ?? '',
-    Telefono:       undefined,                                // opcional, no lo pedimos en el form
+    CliNombre:    cliente.cli_nombre   ?? '',
+    CliApellido:  cliente.cli_apellido ?? '',
+    UsuUsername:  cliente.cli_email?.split('@')[0] ?? '',
+    UsuEmail:     cliente.cli_email    ?? '',
   };
   return await fetchJson<Cliente>(url, { method: 'PUT', body: JSON.stringify(bodyPayload) });
 }
- 
 
-export async function deleteCliente(id: number): Promise<{ success: boolean }> {
+export async function deleteCliente(id: number): Promise<void> {
   const url = `${API_BASE}/api/admin/reportes/clientes/${id}`;
-  return await fetchJson<{ success: boolean }>(url, { method: 'DELETE' });
+  const token = localStorage.getItem('wayback_auth_token');
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(url, { method: 'DELETE', headers });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`DELETE ${res.status}: ${text}`);
+  }
 }
 
 // ── MAPEO INTERNO PARA RESOLVER IDs DE CATEGORÍAS ──

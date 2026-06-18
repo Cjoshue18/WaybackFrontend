@@ -12,13 +12,12 @@ interface Cliente {
   cli_fecha_registro: string;
 }
 
-// Formulario completo (CREATE usa todos los campos; EDIT solo nombre/apellido/email)
 const EMPTY_FORM = {
-  cli_nombre: '',
-  cli_apellido: '',
-  cli_email: '',
+  cli_nombre:         '',
+  cli_apellido:       '',
+  cli_email:          '',
   cli_documento_tipo: 'DNI',
-  cli_documento: '',
+  cli_documento:      '',
 };
 
 export function AdminClients() {
@@ -52,14 +51,13 @@ export function AdminClients() {
 
   useEffect(() => { loadClients(); }, []);
 
+  // Solo se abre en modo edición — no existe modo "crear"
   const openEdit = (c: Cliente) => {
     setEditing(c);
-    // Solo cargamos los campos que el backend permite editar
     setForm({
       cli_nombre:         c.cli_nombre,
       cli_apellido:       c.cli_apellido,
       cli_email:          c.cli_email,
-      // Estos dos se muestran como solo-lectura en modo edición
       cli_documento_tipo: c.cli_documento_tipo,
       cli_documento:      c.cli_documento,
     });
@@ -67,29 +65,27 @@ export function AdminClients() {
     setShowForm(true);
   };
 
-const handleSave = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setSaving(true);
-  setError(null);
-
-  try {
+  // ✅ handleSave solo ejecuta PUT — no hay rama POST
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!editing) return;
-
-    await updateCliente(editing.cli_id, {
-      cli_nombre: form.cli_nombre,
-      cli_apellido: form.cli_apellido,
-      cli_email: form.cli_email,
-    });
-
-    setShowForm(false);
-    await loadClients();
-  } catch (err) {
-    console.error('❌ Error guardando cliente:', err);
-    setError('Error al guardar los datos del cliente. Inténtalo de nuevo.');
-  } finally {
-    setSaving(false);
-  }
-};
+    setSaving(true);
+    setError(null);
+    try {
+      await updateCliente(editing.cli_id, {
+        cli_nombre:   form.cli_nombre,
+        cli_apellido: form.cli_apellido,
+        cli_email:    form.cli_email,
+      });
+      setShowForm(false);
+      await loadClients();
+    } catch (err) {
+      console.error('❌ Error editando cliente:', err);
+      setError('Error al guardar los datos del cliente. Inténtalo de nuevo.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleDelete = async (id: number) => {
     setSaving(true);
@@ -111,7 +107,7 @@ const handleSave = async (e: React.FormEvent) => {
 
   return (
     <div>
-      {/* Cabecera */}
+      {/* Cabecera — sin botón Agregar */}
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: '#111', letterSpacing: '-0.02em', marginBottom: 4 }}>Clientes</h1>
@@ -145,7 +141,7 @@ const handleSave = async (e: React.FormEvent) => {
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16">
-            <p style={{ fontSize: 14, color: '#9ca3af', marginBottom: 6 }}>
+            <p style={{ fontSize: 14, color: '#9ca3af' }}>
               {search ? `Sin resultados para "${search}"` : 'No hay clientes registrados'}
             </p>
           </div>
@@ -188,13 +184,13 @@ const handleSave = async (e: React.FormEvent) => {
         )}
       </div>
 
-      {/* Modal formulario */}
-      {showForm && (
+      {/* Modal editar */}
+      {showForm && editing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => !saving && setShowForm(false)} />
           <div className="relative z-10 bg-white w-full overflow-y-auto" style={{ maxWidth: 480, maxHeight: '90vh', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
             <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid #f3f4f6' }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>{editing ? 'Editar cliente' : 'Nuevo cliente'}</h3>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>Editar cliente</h3>
               <button onClick={() => !saving && setShowForm(false)} className="text-gray-300 hover:text-gray-600 transition-colors" disabled={saving}>
                 <X style={{ width: 16, height: 16 }} />
               </button>
@@ -209,55 +205,49 @@ const handleSave = async (e: React.FormEvent) => {
             <form onSubmit={handleSave} className="p-6 flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-4">
                 <FormField label="Nombre">
-                  <input required type="text" value={form.cli_nombre} onChange={(e) => f('cli_nombre', e.target.value)} placeholder="Juan" className="fi" disabled={saving} />
+                  <input required type="text" value={form.cli_nombre}
+                    onChange={(e) => f('cli_nombre', e.target.value)}
+                    placeholder="Juan" className="fi" disabled={saving} />
                 </FormField>
                 <FormField label="Apellido">
-                  <input required type="text" value={form.cli_apellido} onChange={(e) => f('cli_apellido', e.target.value)} placeholder="García" className="fi" disabled={saving} />
+                  <input required type="text" value={form.cli_apellido}
+                    onChange={(e) => f('cli_apellido', e.target.value)}
+                    placeholder="García" className="fi" disabled={saving} />
                 </FormField>
               </div>
 
               <FormField label="Email">
-                <input required type="email" value={form.cli_email} onChange={(e) => f('cli_email', e.target.value)} placeholder="juan@correo.com" className="fi" disabled={saving} />
+                <input required type="email" value={form.cli_email}
+                  onChange={(e) => f('cli_email', e.target.value)}
+                  placeholder="juan@correo.com" className="fi" disabled={saving} />
               </FormField>
 
-              {/* Documento: editable solo al CREAR, solo-lectura al EDITAR */}
+              {/* Documento: siempre solo-lectura en edición */}
               <div className="grid grid-cols-2 gap-4">
-                <FormField label={editing ? 'Tipo documento (no editable)' : 'Tipo documento'}>
-                  {editing ? (
-                    <div className="fi" style={{ background: '#f3f4f6', color: '#9ca3af', cursor: 'not-allowed' }}>
-                      {form.cli_documento_tipo}
-                    </div>
-                  ) : (
-                    <select value={form.cli_documento_tipo} onChange={(e) => f('cli_documento_tipo', e.target.value)} className="fi w-full" disabled={saving}>
-                      {['DNI', 'RUC', 'Pasaporte', 'CE'].map((t) => <option key={t}>{t}</option>)}
-                    </select>
-                  )}
+                <FormField label="Tipo documento (no editable)">
+                  <div className="fi" style={{ background: '#f3f4f6', color: '#9ca3af', cursor: 'not-allowed' }}>
+                    {form.cli_documento_tipo}
+                  </div>
                 </FormField>
-                <FormField label={editing ? 'Número (no editable)' : 'Número'}>
-                  <input
-                    type="text" value={form.cli_documento}
-                    onChange={(e) => !editing && f('cli_documento', e.target.value)}
-                    placeholder="12345678" className="fi"
-                    readOnly={!!editing}
-                    style={editing ? { background: '#f3f4f6', color: '#9ca3af', cursor: 'not-allowed' } : {}}
-                  />
+                <FormField label="Número (no editable)">
+                  <input type="text" value={form.cli_documento} readOnly className="fi"
+                    style={{ background: '#f3f4f6', color: '#9ca3af', cursor: 'not-allowed' }} />
                 </FormField>
               </div>
-
-              {editing && (
-                <p style={{ fontSize: 11, color: '#9ca3af', marginTop: -8 }}>
-                  * El tipo y número de documento no pueden modificarse una vez registrados.
-                </p>
-              )}
+              <p style={{ fontSize: 11, color: '#9ca3af', marginTop: -8 }}>
+                * El tipo y número de documento no pueden modificarse una vez registrados.
+              </p>
 
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowForm(false)} disabled={saving}
-                  className="flex-1 py-2.5 border border-gray-200 text-gray-600" style={{ fontSize: 12, opacity: saving ? 0.5 : 1 }}>
+                  className="flex-1 py-2.5 border border-gray-200 text-gray-600"
+                  style={{ fontSize: 12, opacity: saving ? 0.5 : 1 }}>
                   Cancelar
                 </button>
                 <button type="submit" disabled={saving}
-                  className="flex-1 py-2.5 text-white" style={{ background: saving ? '#a78bfa' : '#7c3aed', fontSize: 12, fontWeight: 700 }}>
-                  {saving ? 'Guardando...' : editing ? 'Guardar' : 'Crear'}
+                  className="flex-1 py-2.5 text-white"
+                  style={{ background: saving ? '#a78bfa' : '#7c3aed', fontSize: 12, fontWeight: 700 }}>
+                  {saving ? 'Guardando...' : 'Guardar'}
                 </button>
               </div>
             </form>
@@ -274,11 +264,13 @@ const handleSave = async (e: React.FormEvent) => {
             <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 20 }}>Se eliminarán también sus pedidos y datos asociados del servidor.</p>
             <div className="flex gap-3">
               <button onClick={() => setDeleteId(null)} disabled={saving}
-                className="flex-1 py-2.5 border border-gray-200 text-gray-600" style={{ fontSize: 12, opacity: saving ? 0.5 : 1 }}>
+                className="flex-1 py-2.5 border border-gray-200 text-gray-600"
+                style={{ fontSize: 12, opacity: saving ? 0.5 : 1 }}>
                 Cancelar
               </button>
               <button onClick={() => handleDelete(deleteId)} disabled={saving}
-                className="flex-1 py-2.5 bg-red-500 text-white hover:bg-red-600 transition-colors" style={{ fontSize: 12, fontWeight: 700 }}>
+                className="flex-1 py-2.5 bg-red-500 text-white hover:bg-red-600 transition-colors"
+                style={{ fontSize: 12, fontWeight: 700 }}>
                 {saving ? 'Eliminando...' : 'Eliminar'}
               </button>
             </div>
