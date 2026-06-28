@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchJson } from '@/lib/api';
-
-const API_BASE = 'https://y2kvault-backend.onrender.com';
+import { fetchJson, API_BASE } from '@/lib/api';
 
 // ── TIPOS ──
 export interface UserProfile {

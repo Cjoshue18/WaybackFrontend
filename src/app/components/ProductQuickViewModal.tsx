@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { calcularDescuento, type Product } from '@/app/components/ProductCard';
 import { useCart } from '@/app/hooks/useCart';
+import { getProductoDetalle } from '@/lib/api';
 
 interface ProductQuickViewModalProps {
   product: Product;
@@ -15,19 +16,35 @@ export function ProductQuickViewModal({ product, onClose, onAdded }: ProductQuic
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedTalla, setSelectedTalla] = useState<string | null>(null);
 
-  const { activo: descuentoActivo, precioFinal } = calcularDescuento(product);
-  const variantes = product.variantes ?? [];
+  // El listado no trae variantes (varId); las cargamos del detalle al abrir.
+  const [detalle, setDetalle] = useState<Product | null>(product.variantes?.length ? product : null);
+  const [cargandoVariantes, setCargandoVariantes] = useState(!product.variantes?.length);
+
+  useEffect(() => {
+    if (product.variantes?.length) return; // Ya venían incluidas.
+    let activo = true;
+    setCargandoVariantes(true);
+    getProductoDetalle(product.id)
+      .then((d) => { if (activo && d) setDetalle(d); })
+      .finally(() => { if (activo) setCargandoVariantes(false); });
+    return () => { activo = false; };
+  }, [product.id, product.variantes]);
+
+  // Fuente de datos: el detalle (con variantes) si ya cargó, si no el producto del listado.
+  const fuente = detalle ?? product;
+  const { activo: descuentoActivo, precioFinal } = calcularDescuento(fuente);
+  const variantes = fuente.variantes ?? [];
 
   // Con variantes reales tenemos colorHex/colorNombre y stock por combinación;
   // sin ellas, caemos a los arreglos planos de colors/tallas (sin detalle de stock).
   const colores: { hex: string; nombre: string }[] = variantes.length > 0
     ? Array.from(new Map(variantes.map((v) => [v.colorHex, v.colorNombre])).entries())
         .map(([hex, nombre]) => ({ hex, nombre }))
-    : (product.colors ?? []).map((c) => ({ hex: String(c).toUpperCase(), nombre: String(c) }));
+    : (fuente.colors ?? []).map((c) => ({ hex: String(c).toUpperCase(), nombre: String(c) }));
 
   const tallas: string[] = variantes.length > 0
     ? Array.from(new Set(variantes.map((v) => v.varTalla)))
-    : (product.tallas ?? []);
+    : (fuente.tallas ?? []);
 
   const tallaDisponible = (talla: string) => {
     if (variantes.length === 0) return true;
@@ -38,24 +55,31 @@ export function ProductQuickViewModal({ product, onClose, onAdded }: ProductQuic
 
   const requiereTalla = tallas.length > 0;
   const requiereColor = colores.length > 0;
+
+  const varianteSeleccionada = variantes.find(
+    (v) => (!requiereTalla || v.varTalla === selectedTalla) && (!requiereColor || v.colorHex === selectedColor)
+  );
+
   const puedeAgregar =
-    product.inStock !== false && (!requiereTalla || !!selectedTalla) && (!requiereColor || !!selectedColor);
+    fuente.inStock !== false &&
+    !cargandoVariantes &&
+    (!requiereTalla || !!selectedTalla) &&
+    (!requiereColor || !!selectedColor) &&
+    // Si el producto tiene variantes, exigimos una con varId válido (es lo que factura el pedido).
+    (variantes.length === 0 || !!varianteSeleccionada?.varId);
 
   const handleAddToCart = () => {
     if (!puedeAgregar) return;
     const colorNombre = colores.find((c) => c.hex === selectedColor)?.nombre ?? 'Único';
-    const varianteSeleccionada = variantes.find(
-      (v) => (!requiereTalla || v.varTalla === selectedTalla) && (!requiereColor || v.colorHex === selectedColor)
-    );
     addToCart({
-      id: product.id,
+      id: fuente.id,
       varId: varianteSeleccionada?.varId,
-      name: product.name,
+      name: fuente.name,
       price: precioFinal,
-      image: product.image,
+      image: fuente.image,
       size: selectedTalla ?? 'Único',
       color: colorNombre,
-      inStock: product.inStock ?? true,
+      inStock: fuente.inStock ?? true,
     });
     onAdded();
   };
@@ -152,7 +176,7 @@ export function ProductQuickViewModal({ product, onClose, onAdded }: ProductQuic
           )}
 
           <div className="mt-auto pt-2">
-            {product.inStock !== false && !puedeAgregar && (
+            {fuente.inStock !== false && !puedeAgregar && !cargandoVariantes && (
               <p className="text-xs text-gray-400 mb-2 text-center">
                 {requiereTalla && !selectedTalla ? 'Selecciona una talla' : 'Selecciona un color'}
               </p>
@@ -164,7 +188,11 @@ export function ProductQuickViewModal({ product, onClose, onAdded }: ProductQuic
               className="w-full py-3 rounded-full text-white text-xs font-bold uppercase tracking-widest transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ background: 'linear-gradient(135deg,#7c3aed,#a78bfa)' }}
             >
-              {product.inStock === false ? 'Agotado' : 'Agregar al carrito'}
+              {fuente.inStock === false
+                ? 'Agotado'
+                : cargandoVariantes
+                ? 'Cargando opciones…'
+                : 'Agregar al carrito'}
             </button>
           </div>
         </div>

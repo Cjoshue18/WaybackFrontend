@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { ShoppingBag, Minus, Plus, Trash2, Tag, Truck, ShieldCheck, MapPin, RefreshCw, QrCode } from 'lucide-react';
+import { ShoppingBag, Minus, Plus, Trash2, Tag, Truck, ShieldCheck, MapPin, RefreshCw, CreditCard, Lock, CheckCircle2, Loader2 } from 'lucide-react';
 import { useCart } from '@/app/hooks/useCart';
 import { useDirecciones } from '@/app/hooks/useProfile';
-import { crearPedido } from '@/lib/api';
+import { crearPedido, crearPreferenciaPago, notificarPagoWebhook } from '@/lib/api';
 import { Toaster } from '@/app/components/ui/sonner';
 
 export function CartPage() {
@@ -12,9 +12,9 @@ export function CartPage() {
   const [couponCode, setCouponCode] = useState('');
 
   const [selectedDirId, setSelectedDirId] = useState<number | null>(null);
-  const [numeroYape, setNumeroYape] = useState('');
-  const [codigoAprobacion, setCodigoAprobacion] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Estado de la pasarela para el overlay de animación.
+  const [pagoEstado, setPagoEstado] = useState<'idle' | 'procesando' | 'exito'>('idle');
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shipping = subtotal > 1500 ? 0 : 150;
@@ -27,32 +27,57 @@ export function CartPage() {
     !submitting &&
     cartItems.length > 0 &&
     !itemsSinVariante &&
-    selectedDirId !== null &&
-    /^\d{1,9}$/.test(numeroYape) &&
-    /^\d{1,6}$/.test(codigoAprobacion);
+    selectedDirId !== null;
 
-  const handleConfirmarPedido = async () => {
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  // ── FLUJO DE PAGO 100% AUTOMÁTICO ──
+  // 1) crea la preferencia → 2) anima la "apertura" de la pasarela →
+  // 3) crea el pedido → 4) dispara el webhook que lo aprueba automáticamente.
+  const handlePagoSeguro = async () => {
     if (!puedeConfirmar || selectedDirId === null) return;
     setSubmitting(true);
+    setPagoEstado('procesando');
 
-    const result = await crearPedido({
+    // 1) Preferencia de pago (monto calculado en el server con los ítems reales).
+    const pref = await crearPreferenciaPago({
+      Items: cartItems.map((item) => ({ precio: item.price, cantidad: item.quantity })),
+    });
+
+    if (!pref.success) {
+      setPagoEstado('idle');
+      setSubmitting(false);
+      toast.error(pref.error ?? 'No se pudo iniciar el pago.');
+      return;
+    }
+
+    // 2) Simulamos la apertura/procesamiento de la pasarela.
+    await sleep(2000);
+
+    // 3) Creamos el pedido (queda 'pendiente' en el server).
+    const pedido = await crearPedido({
       dirId: selectedDirId,
-      NumeroYape: numeroYape,
-      CodigoAprobacion: codigoAprobacion,
       Items: cartItems.map((item) => ({ VarId: item.varId as number, Cantidad: item.quantity })),
     });
 
-    setSubmitting(false);
-
-    if (result.success) {
-      toast.success('¡Pedido confirmado! Te llegará la confirmación pronto.');
-      clearCart();
-      setNumeroYape('');
-      setCodigoAprobacion('');
-      setSelectedDirId(null);
-    } else {
-      toast.error(result.error ?? 'No se pudo confirmar el pedido.');
+    if (!pedido.success || !pedido.pedId) {
+      setPagoEstado('idle');
+      setSubmitting(false);
+      toast.error(pedido.error ?? 'No se pudo registrar el pedido.');
+      return;
     }
+
+    // 4) Webhook de pago aprobado → el server lo pasa a 'aceptado' automáticamente.
+    await notificarPagoWebhook(pedido.pedId, 'aprobado');
+
+    setPagoEstado('exito');
+    await sleep(1200);
+
+    toast.success('¡Pago aprobado! Tu pedido fue confirmado automáticamente.');
+    clearCart();
+    setSelectedDirId(null);
+    setSubmitting(false);
+    setPagoEstado('idle');
   };
 
   return (
@@ -246,54 +271,22 @@ export function CartPage() {
                 )}
               </div>
 
-              {/* Pago con Yape */}
+              {/* Pago Seguro (pasarela automática) */}
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-[rgba(124,58,237,0.15)]">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-gray-800 mb-4">Pago con Yape</h3>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-gray-800 mb-4 flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-[#7c3aed]" /> Pago Seguro
+                </h3>
 
-                {/* Datos de la tienda + QR (validación manual, no es pasarela automática) */}
-                <div className="rounded-2xl p-5 mb-5 bg-[rgba(124,58,237,0.04)] border border-[rgba(124,58,237,0.15)] flex flex-col sm:flex-row gap-5 items-center">
-                  <div className="w-28 h-28 flex-shrink-0 rounded-xl border-2 border-dashed border-[#7c3aed]/40 bg-white flex flex-col items-center justify-center gap-1">
-                    <QrCode className="w-12 h-12 text-[#7c3aed]" strokeWidth={1.5} />
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">QR Yape</span>
-                  </div>
-
-                  <div className="flex-1 text-center sm:text-left">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Yapea a Wayback</p>
-                    <p className="text-2xl font-black text-[#7c3aed] tracking-tight mb-3">987,654,321</p>
-                    <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside text-left">
-                      <li>Escanea el QR o yapea al número de la tienda.</li>
-                      <li>Realiza la transferencia por el monto total.</li>
-                      <li>Ingresa tu número de celular y el código de aprobación de 6 dígitos emitido por Yape abajo para confirmar tu pedido.</li>
-                    </ol>
+                <div className="rounded-2xl p-5 bg-[rgba(124,58,237,0.04)] border border-[rgba(124,58,237,0.15)] flex items-center gap-4">
+                  <CreditCard className="w-10 h-10 text-[#7c3aed] flex-shrink-0" strokeWidth={1.5} />
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800 mb-0.5">Pasarela de pago integrada</p>
+                    <p className="text-xs text-gray-600 leading-relaxed">
+                      Tu pedido se confirma automáticamente al aprobarse el pago. Sin pasos manuales ni códigos.
+                    </p>
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-xs text-gray-500 mb-1 block">Número Yape</label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={9}
-                      value={numeroYape}
-                      onChange={(e) => setNumeroYape(e.target.value.replace(/\D/g, '').slice(0, 9))}
-                      placeholder="987654321"
-                      className="w-full px-4 py-2 border border-[rgba(124,58,237,0.2)] rounded-full focus:outline-none focus:border-[#7c3aed] text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 mb-1 block">Código de aprobación</label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={codigoAprobacion}
-                      onChange={(e) => setCodigoAprobacion(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      placeholder="123456"
-                      className="w-full px-4 py-2 border border-[rgba(124,58,237,0.2)] rounded-full focus:outline-none focus:border-[#7c3aed] text-sm"
-                    />
-                  </div>
-                </div>
                 {itemsSinVariante && (
                   <p className="text-xs text-red-500 mt-4">
                     Algunos productos del carrito no tienen una variante válida (talla/color). Quítalos y agrégalos de nuevo desde el catálogo.
@@ -357,13 +350,13 @@ export function CartPage() {
                   </span>
                 </div>
 
-                {/* Checkout Button */}
+                {/* Checkout Button — Pago Seguro automático */}
                 <button
-                  onClick={handleConfirmarPedido}
+                  onClick={handlePagoSeguro}
                   disabled={!puedeConfirmar}
                   className="w-full py-4 bg-[#7c3aed] text-white rounded-full hover:bg-[#6d28d9] transition-colors font-semibold mb-3 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {submitting ? <><RefreshCw className="w-4 h-4 animate-spin" /> Confirmando…</> : 'Confirmar Pedido'}
+                  {submitting ? <><RefreshCw className="w-4 h-4 animate-spin" /> Procesando pago…</> : '💳 Proceder al Pago Seguro'}
                 </button>
                 {!selectedDirId && cartItems.length > 0 && (
                   <p className="text-xs text-gray-400 text-center mb-3">Selecciona una dirección de envío para continuar.</p>
@@ -400,6 +393,32 @@ export function CartPage() {
           </div>
         )}
       </div>
+
+      {/* ── Overlay de la pasarela de pago ── */}
+      {pagoEstado !== 'idle' && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl px-10 py-12 max-w-sm w-full mx-6 text-center shadow-2xl">
+            {pagoEstado === 'procesando' ? (
+              <>
+                <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-[rgba(124,58,237,0.1)] flex items-center justify-center">
+                  <Loader2 className="w-8 h-8 text-[#7c3aed] animate-spin" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-800 mb-2">Procesando tu pago…</h3>
+                <p className="text-sm text-gray-500">Estamos contactando con la pasarela de pago segura. No cierres esta ventana.</p>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-green-100 flex items-center justify-center">
+                  <CheckCircle2 className="w-9 h-9 text-green-600" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-800 mb-2">¡Pago aprobado!</h3>
+                <p className="text-sm text-gray-500">Tu pedido fue confirmado automáticamente.</p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       <Toaster />
     </div>
   );

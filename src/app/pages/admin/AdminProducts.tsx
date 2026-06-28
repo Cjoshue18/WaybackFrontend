@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2, X, Eye } from 'lucide-react';
-import { getProductos, fetchJson } from '@/lib/api'; 
+import { getProductos, fetchJson, API_BASE } from '@/lib/api';
 import type { Product } from '@/lib/api';
-
-const API_BASE = 'https://y2kvault-backend.onrender.com';
 
 const CATEGORIAS = ['Pantalón','Falda','Shorts','Jogger','Camisetas','Suéteres','Chaquetas','Sets Baggy','Sets Denim','Sets Deportivos','Sets Tejidos'];
 
@@ -35,6 +33,15 @@ const EMPTY_FORM: FormData = {
 
 // Mapa nombre legible → CatId relacional (índice 1-based de la lista CATEGORIAS)
 const catIdFromNombre = (nombre: string): number => CATEGORIAS.indexOf(nombre) + 1;
+
+// ISO completo → formato que aceptan los <input type="datetime-local"> ('YYYY-MM-DDTHH:mm').
+const isoToLocalInput = (iso: string): string => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
 
 // Mapa valor sexo almacenado en Product → value del selector
 const sexoToValue = (sexo: string): string => {
@@ -95,15 +102,17 @@ export function AdminProducts() {
 
     setForm({
       pro_nombre:       p.name,
+      // descripción y estilo no vienen en el GET /api/productos; quedan editables pero sin prefill.
       pro_descripcion:  'Prenda Wayback Original',
       categoria:        catNombre,
       sexo:             sexoToValue(p.sexo),
       precio:           p.price,
       estiloId:         1,
       imagenUrl:        p.image,
-      descuento:        0,
-      descuentoInicio:  '',
-      descuentoFin:     '',
+      // ✅ Prefijamos el descuento real para no borrarlo al guardar (antes se forzaba a 0).
+      descuento:        p.proDescuento ?? 0,
+      descuentoInicio:  p.proDescuentoInicio ?? '',
+      descuentoFin:     p.proDescuentoFin ?? '',
     });
     setShowForm(true);
   };
@@ -359,14 +368,14 @@ export function AdminProducts() {
                   </Field>
                   <Field label="Inicio">
                     <input
-                      type="datetime-local" value={form.descuentoInicio}
+                      type="datetime-local" value={isoToLocalInput(form.descuentoInicio)}
                       onChange={(e) => setForm({...form, descuentoInicio: e.target.value ? new Date(e.target.value).toISOString() : ''})}
                       className="form-input"
                     />
                   </Field>
                   <Field label="Fin">
                     <input
-                      type="datetime-local" value={form.descuentoFin}
+                      type="datetime-local" value={isoToLocalInput(form.descuentoFin)}
                       onChange={(e) => setForm({...form, descuentoFin: e.target.value ? new Date(e.target.value).toISOString() : ''})}
                       className="form-input"
                     />

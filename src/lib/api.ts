@@ -1,4 +1,6 @@
-const API_BASE = 'https://y2kvault-backend.onrender.com';
+// Base del backend. Configurable por entorno con VITE_API_BASE (Vercel/preview/local);
+// si no está definida, cae al backend de producción por defecto.
+export const API_BASE = import.meta.env.VITE_API_BASE ?? 'https://y2kvault-backend.onrender.com';
 
 // ── INTERFACES EXISTENTES ──
 export interface CategoriaApi {
@@ -577,23 +579,73 @@ export async function getProductosPorCategoria(categoryId: number | string): Pro
   return getProductos({ categoria: [categoryId] });
 }
 
-// ── PEDIDOS (Checkout Yape) ──
+// El listado /api/productos no incluye variantes (varId); el detalle /api/productos/{id} sí.
+// Se usa al abrir la vista previa para poder facturar con el VarId correcto.
+export async function getProductoDetalle(id: number | string): Promise<Product | null> {
+  try {
+    const data = await fetchJson<any>(`${API_BASE}/api/productos/${id}`);
+    return data ? parseProducto(data) : null;
+  } catch (error) {
+    console.error('Error al obtener el detalle del producto:', error);
+    return null;
+  }
+}
+
+// ── PEDIDOS (Checkout) ──
 export interface CrearPedidoPayload {
   dirId: number;
-  NumeroYape: string;
-  CodigoAprobacion: string;
+  // Opcionales: con la pasarela automática ya no se ingresan a mano.
+  NumeroYape?: string;
+  CodigoAprobacion?: string;
   Items: { VarId: number; Cantidad: number }[];
 }
 
-export async function crearPedido(payload: CrearPedidoPayload): Promise<{ success: boolean; error?: string }> {
+export async function crearPedido(payload: CrearPedidoPayload): Promise<{ success: boolean; pedId?: number; error?: string }> {
   try {
-    await fetchJson(`${API_BASE}/api/mis-pedidos`, {
+    const data = await fetchJson<{ pedId?: number }>(`${API_BASE}/api/mis-pedidos`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
-    return { success: true };
+    return { success: true, pedId: data?.pedId };
   } catch (err: any) {
     return { success: false, error: err?.message ?? 'No se pudo confirmar el pedido.' };
+  }
+}
+
+// ── PASARELA DE PAGO AUTOMÁTICA ──
+export interface PreferenciaPagoPayload {
+  Items: { precio: number; cantidad: number }[];
+}
+
+export interface PreferenciaPago {
+  preferenceId: string;
+  monto: number;
+  initPoint: string;
+}
+
+// Crea la preferencia de pago (paso 1: el frontend "abre" la pasarela).
+export async function crearPreferenciaPago(payload: PreferenciaPagoPayload): Promise<{ success: boolean; data?: PreferenciaPago; error?: string }> {
+  try {
+    const data = await fetchJson<PreferenciaPago>(`${API_BASE}/api/pagos/crear-preferencia`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return { success: true, data };
+  } catch (err: any) {
+    return { success: false, error: err?.message ?? 'No se pudo iniciar el pago.' };
+  }
+}
+
+// Notifica el resultado del pago (paso final: aprueba el pedido vía webhook).
+export async function notificarPagoWebhook(pedidoId: number, estado: 'aprobado' | 'rechazado' = 'aprobado'): Promise<{ success: boolean; error?: string }> {
+  try {
+    await fetchJson(`${API_BASE}/api/pagos/webhook`, {
+      method: 'POST',
+      body: JSON.stringify({ estado, pedidoId }),
+    });
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message ?? 'No se pudo confirmar el pago.' };
   }
 }
 
