@@ -1,6 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 //  Servidor local híbrido de Wayback
-//  • Rutas mockeadas en memoria: perfil, direcciones y pedidos (desarrollo offline).
+//  • Rutas mockeadas en memoria: pedidos de checkout y pasarela de pago.
+//  • Perfil, clientes y direcciones NO se mockean: van al backend real (Render).
 //  • Cualquier otra ruta /api/* se proxea al backend real (catálogo, productos…).
 //
 //  Apunta el frontend aquí con VITE_API_BASE=http://localhost:3000 (ver .env.local).
@@ -15,86 +16,42 @@ const PORT = 3000;
 // Configurable con BACKEND_URL; por defecto, el de producción.
 const BACKEND_URL = process.env.BACKEND_URL ?? 'https://y2kvault-backend.onrender.com';
 
+// Decodifica el payload de un JWT sin verificar firma (server mock, solo dev).
+function decodeJwtPayload(authHeader) {
+  const token = (authHeader ?? '').replace(/^Bearer\s+/i, '');
+  const parts = token.split('.');
+  if (parts.length !== 3) return {};
+  try {
+    const json = Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+    return JSON.parse(json);
+  } catch {
+    return {};
+  }
+}
+
 // ── Base de datos en memoria (mock, se reinicia al reiniciar el server) ──────
-let perfil = {
-  cliNombre: 'Mathias',
-  cliApellido: 'Ticona',
-  usuUsername: 'mathias29',
-  usuEmail: 'mathias.ticona@urp.edu.pe',
-  cliTelefono: '941197623',
-};
-
-let direcciones = [
-  {
-    dirId: 1,
-    DirCalle: 'Av. Benavides 5440',
-    DirDistrito: 'Santiago de Surco',
-    DirProvincia: 'Lima',
-    DirDepartamento: 'Lima',
-    DirReferencia: 'Frente a la URP',
-    DirPreferido: true,
-  },
-];
-
+// El backend real (Render) es la única fuente de verdad para perfil, clientes y
+// direcciones — este server solo mockea pedidos de checkout y la pasarela de pago.
 let pedidos = [];
-
-// Secuencias para IDs autoincrementales.
-let nextDirId = 2;
 let nextPedId = 1;
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ── PERFIL ───────────────────────────────────────────────────────────────────
-app.get('/api/profile/mi-perfil', (_req, res) => {
-  res.json(perfil);
-});
-
-app.put('/api/profile/mi-perfil', (req, res) => {
-  // Solo sobreescribimos las claves enviadas, conservando el resto.
-  perfil = { ...perfil, ...req.body };
-  res.json(perfil);
-});
-
-// ── DIRECCIONES ────────────────────────────────────────────────────────────--
-app.get('/api/profile/direcciones', (_req, res) => {
-  res.json(direcciones);
-});
-
-app.post('/api/profile/direcciones', (req, res) => {
-  const nueva = { dirId: nextDirId++, ...req.body };
-  // Una sola dirección preferida a la vez.
-  if (nueva.DirPreferido) direcciones.forEach((d) => { d.DirPreferido = false; });
-  direcciones.push(nueva);
-  res.status(201).json(nueva);
-});
-
-app.put('/api/profile/direcciones/:id', (req, res) => {
-  const id = Number(req.params.id);
-  const idx = direcciones.findIndex((d) => d.dirId === id);
-  if (idx === -1) return res.status(404).json({ message: 'Dirección no encontrada' });
-  if (req.body.DirPreferido) direcciones.forEach((d) => { d.DirPreferido = false; });
-  direcciones[idx] = { ...direcciones[idx], ...req.body, dirId: id };
-  res.json(direcciones[idx]);
-});
-
-app.delete('/api/profile/direcciones/:id', (req, res) => {
-  const id = Number(req.params.id);
-  direcciones = direcciones.filter((d) => d.dirId !== id);
-  res.status(204).end();
-});
-
 // ── PEDIDOS (cliente) ──────────────────────────────────────────────────────--
 app.post('/api/mis-pedidos', (req, res) => {
+  const claims = decodeJwtPayload(req.headers.authorization);
   const { dirId, NumeroYape, CodigoAprobacion, Items = [] } = req.body ?? {};
-  const dir = direcciones.find((d) => d.dirId === Number(dirId));
 
   const pedido = {
     pedId: nextPedId++,
     // Estructura que entiende el parser de AdminOrders (cliente puede ser objeto).
-    cliente: { cliNombre: perfil.cliNombre, cliApellido: perfil.cliApellido },
-    email: perfil.usuEmail,
+    cliente: {
+      cli_nombre:   claims.cli_nombre || claims.nombre || claims.given_name || '',
+      cli_apellido: claims.cli_apellido || claims.apellido || claims.family_name || '',
+    },
+    email: claims.cli_email || claims.email || claims.unique_name || '',
     pedEstado: 'pendiente',
     pedTotal: 0, // El payload del checkout no envía precios; total nominal en el mock.
     pedFechaCompra: new Date().toISOString(),
@@ -102,7 +59,7 @@ app.post('/api/mis-pedidos', (req, res) => {
     metodoPago: 'Yape',
     numeroYape: NumeroYape ?? '',
     codigoAprobacion: CodigoAprobacion ?? '',
-    direccionEnvio: dir ? dir.DirCalle : '',
+    direccionEnvio: '', // La dirección vive en el backend real; no se resuelve localmente.
     items: Items.map((it) => ({
       varId: it.VarId,
       cantidad: it.Cantidad,
@@ -211,6 +168,6 @@ app.use(async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor híbrido Wayback en http://localhost:${PORT}`);
-  console.log(`   • Mock local: perfil, direcciones, pedidos`);
+  console.log(`   • Mock local: pedidos, pasarela de pago`);
   console.log(`   • Proxy → ${BACKEND_URL} (resto de rutas)`);
 });

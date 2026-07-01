@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // [P16 FIX] isAdmin con useMemo para evitar recálculo innecesario en cada render
   const isAdmin = useMemo(() => user?.role === 'admin', [user]);
 
-  // ── MÉTODO DE INICIO DE SESIÓN (acepta usuario o correo, el backend resuelve cuál es) ──
+  // ── MÉTODO DE INICIO DE SESIÓN ──
   const login = async (identifier: string, password: string): Promise<{ success: boolean; role?: Role; error?: string }> => {
     const trimmedIdentifier = identifier.trim();
     const trimmedPass = password.trim();
@@ -76,7 +76,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: false, error: result.error };
     }
 
-    // [P13 FIX] Si el backend no devuelve token, lo tratamos como error en lugar de usar 'session-active'
     if (!result.token) {
       return { success: false, error: 'El servidor no devolvió un token de autenticación. Contacta soporte.' };
     }
@@ -84,25 +83,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const apiUser: LoginApiResponse = result.user ?? {};
     const role: Role = apiUser.rol === 'admin' ? 'admin' : 'client';
 
-    // [P9 FIX] Eliminada la comprobación errónea de `typeof apiUser.usuario === 'string'`.
-    // El username viene directamente en apiUser.usuUsername (raíz de la respuesta).
-    // [P10 FIX] Ahora LoginApiResponse tipifica todos los campos necesarios, sin 'any'.
-    // [LOGIN-ID FIX] El correo real viene de apiUser.usuEmail: si guardáramos el identificador
-    // tal cual fue tecleado, un login por nombre de usuario dejaría "email" con el username.
+    // 🎯 FIX: Cambiado 'undefined' por '""' para que persistir en localStorage no destruya la llave del DNI
+    // Sincronizamos y blindamos contra minúsculas (snake_case) evadiendo el tipado estricto
     const loggedUser: AuthUser = {
-      id: Number(apiUser.id ?? apiUser.usuId ?? 0),
-      name: apiUser.cliNombre
-        ? `${apiUser.cliNombre} ${apiUser.cliApellido ?? ''}`.trim()
+      id: Number(apiUser.id ?? apiUser.usuId ?? (apiUser as any).cli_id ?? 0),
+      name: apiUser.cliNombre || (apiUser as any).cli_nombre
+        ? `${apiUser.cliNombre ?? (apiUser as any).cli_nombre} ${apiUser.cliApellido ?? (apiUser as any).cli_apellido ?? ''}`.trim()
         : (apiUser.usuEmail ?? trimmedIdentifier).split('@')[0],
-      email: apiUser.usuEmail ?? trimmedIdentifier,
+      email: apiUser.usuEmail ?? (apiUser as any).usu_email ?? trimmedIdentifier,
       role,
-      username: apiUser.usuUsername ?? 'usuario',
-      tipoDocumento: apiUser.cliTipoDocumento ?? 'DNI',
-      documento: apiUser.cliDocumento ?? undefined,
-      telefono: apiUser.cliTelefono ?? null,
+      username: apiUser.usuUsername ?? (apiUser as any).usu_username ?? 'usuario',
+      tipoDocumento: apiUser.cliTipoDocumento ?? (apiUser as any).cli_documento_tipo ?? 'DNI',
+      documento: apiUser.cliDocumento ?? (apiUser as any).cli_documento ?? '', 
+      telefono: apiUser.cliTelefono ?? (apiUser as any).cli_telefono ?? null,
     };
 
-    // [P17 FIX] Limpiamos primero el estado anterior antes de asignar el nuevo usuario
     setUser(null);
     setToken(result.token);
     setUser(loggedUser);
@@ -112,7 +107,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // ── MÉTODO DE REGISTRO ──
   const register = async (data: RegisterData): Promise<{ success: boolean; error?: string }> => {
-    // [P12 FIX] Trimamos el email antes de llamar a registerClienteApi para consistencia
     const trimmedData: RegisterData = {
       ...data,
       Email: data.Email.trim().toLowerCase(),
@@ -124,8 +118,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: false, error: result.error };
     }
 
-    // [P11 FIX] Resolvemos la race condition construyendo el usuario completo
-    // en un único loginApi + setUser, sin un segundo setUser de enriquecimiento.
     const loginResult = await loginApi(trimmedData.Email, trimmedData.Contrasena);
 
     if (!loginResult.success || !loginResult.token) {
@@ -135,7 +127,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const apiUser: LoginApiResponse = loginResult.user ?? {};
     const role: Role = apiUser.rol === 'admin' ? 'admin' : 'client';
 
-    // Construimos el usuario final de una sola vez con los datos del registro (más completos)
     const registeredUser: AuthUser = {
       id: Number(apiUser.id ?? apiUser.usuId ?? 0),
       name: `${trimmedData.Nombres} ${trimmedData.Apellidos}`.trim(),
@@ -143,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role,
       username: trimmedData.NombreUsuario,
       tipoDocumento: trimmedData.TipoDocumento,
-      documento: trimmedData.Documento,
+      documento: trimmedData.Documento || '',
       telefono: apiUser.cliTelefono ?? null,
     };
 
@@ -153,15 +144,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { success: true };
   };
 
-  // ── MÉTODO PARA ACTUALIZAR DATOS DEL USUARIO LOCALMENTE ──
-  // Útil después de llamar a updatePerfilApi o updateDireccionApi
+  // ── MÉTODO PARA ACTUALIZAR DATOS DEL USUARIO LOCALMENTE Y FORZAR STORAGE ──
   const updateUser = (partial: Partial<AuthUser>) => {
-    setUser((prev) => (prev ? { ...prev, ...partial } : null));
+    setUser((prev) => {
+      if (!prev) return null;
+      const nuevoUsuario = { ...prev, ...partial };
+      try {
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(nuevoUsuario));
+      } catch (e) {
+        console.error("Error al persistir el perfil actualizado:", e);
+      }
+      return nuevoUsuario;
+    });
   };
 
   const logout = () => {
     setUser(null);
     setToken(null);
+    localStorage.removeItem(USER_STORAGE_KEY);
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
   };
 
   return (
@@ -171,7 +172,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// ── EXPORT DEL HOOK GLOBAL ──
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');

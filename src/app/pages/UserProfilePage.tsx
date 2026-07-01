@@ -1,15 +1,34 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   User, Mail, FileText, Lock,
   Edit2, ShoppingBag, MapPin, CreditCard,
   AlertCircle, RefreshCw, CheckCircle, Calendar,
-  Plus, Trash2, Star
+  Plus, Trash2, Star, X
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext'; // 🔑 Volvemos al origen confiable de datos
+import { useAuth } from '../context/AuthContext';
 import {
   useProfile, useDirecciones,
   type UpdateProfilePayload, type Direccion, type DireccionPayload
 } from '../hooks/useProfile';
+import { useUbigeo } from '../hooks/useUbigeo';
+import { SearchBox } from '@mapbox/search-js-react';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
+
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN ?? '';
+const LIMA_CENTER: [number, number] = [-77.0428, -12.0464];
+const MAPBOX_THEME = {
+  variables: {
+    fontFamily: 'inherit',
+    colorBackground: '#ffffff',
+    colorPrimary: '#7c3aed',
+    borderRadius: '0.75rem',
+    border: '1px solid #e5e7eb',
+    padding: '0.5rem 0.75rem',
+    boxShadow: 'none',
+  },
+};
+const INPUT_CLS = 'w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/30 focus:border-[#7c3aed] bg-white';
 
 // ── SKELETON DE CARGA ELEGANTE ──
 function ProfileSkeleton() {
@@ -43,16 +62,16 @@ function ProfileSkeleton() {
   );
 }
 
-// ── MODAL DE EDICIÓN (Mantenemos la UX de la rama perfil) ──
+// ── MODAL DE EDICIÓN DEL PERFIL ENRIQUECIDO (CON EXTENSIÓN PARA DNI) ──
 function EditProfileModal({
   initialData,
   saving,
   onSave,
   onClose,
 }: {
-  initialData: { name: string; username: string; email: string };
+  initialData: { name: string; username: string; email: string; tipoDocumento: string; documento: string };
   saving: boolean;
-  onSave: (payload: UpdateProfilePayload) => Promise<{ success: boolean; error?: string }>;
+  onSave: (payload: any) => Promise<{ success: boolean; error?: string }>;
   onClose: () => void;
 }) {
   const [form, setForm] = useState(initialData);
@@ -64,15 +83,16 @@ function EditProfileModal({
 
   const handleSubmit = async () => {
     setSaveError(null);
+    const [cli_nombre, ...resto] = form.name.trim().split(/\s+/);
 
-    // El backend espera nombre y apellido por separado (cliNombre / cliApellido).
-    const [cliNombre, ...resto] = form.name.trim().split(/\s+/);
-
+    // Inyectamos las claves exactas en el cuerpo JSON del PUT para Render
     const result = await onSave({
-      cliNombre: cliNombre || '',
-      cliApellido: resto.join(' '),
-      usuUsername: form.username.trim(),
-      usuEmail: form.email.trim(),
+      cli_nombre: cli_nombre || '',
+      cli_apellido: resto.join(' '),
+      usu_username: form.username.trim(),
+      cli_email: form.email.trim(),
+      cli_documento_tipo: form.tipoDocumento,
+      cli_documento: form.documento.trim()
     });
 
     if (result.success) {
@@ -85,28 +105,62 @@ function EditProfileModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 animate-in fade-in zoom-in-95 duration-150">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-base font-bold uppercase tracking-wider text-gray-900">Editar información</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl">✕</button>
         </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-          {[
-            { label: 'Nombre Completo', field: 'name' as const },
-            { label: 'Nombre de usuario', field: 'username' as const },
-            { label: 'Correo electrónico', field: 'email' as const },
-          ].map(({ label, field }) => (
-            <div key={field} className={field === 'email' ? 'sm:col-span-2' : ''}>
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">{label}</label>
-              <input
-                type="text"
-                value={form[field]}
-                onChange={(e) => handleChange(field, e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/30 focus:border-[#7c3aed]"
-              />
-            </div>
-          ))}
+          <div className="sm:col-span-2">
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Nombre Completo</label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => handleChange('name', e.target.value)}
+              className={INPUT_CLS}
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Nombre de usuario</label>
+            <input
+              type="text"
+              value={form.username}
+              onChange={(e) => handleChange('username', e.target.value)}
+              className={INPUT_CLS}
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Tipo de Documento</label>
+            <select
+              value={form.tipoDocumento}
+              onChange={(e) => handleChange('tipoDocumento', e.target.value)}
+              className={INPUT_CLS}
+            >
+              <option value="DNI">DNI</option>
+              <option value="RUC">RUC</option>
+              <option value="CE">Carnet de Extranjería</option>
+            </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Número de Documento</label>
+            <input
+              type="text"
+              value={form.documento}
+              onChange={(e) => handleChange('documento', e.target.value)}
+              className={INPUT_CLS}
+              placeholder="Ingresa tu documento de identidad"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Correo electrónico</label>
+            <input
+              type="text"
+              value={form.email}
+              onChange={(e) => handleChange('email', e.target.value)}
+              className={INPUT_CLS}
+            />
+          </div>
         </div>
 
         {saveError && <p className="text-xs text-red-500 font-medium mb-4">{saveError}</p>}
@@ -128,109 +182,209 @@ function EditProfileModal({
   );
 }
 
-// ── MODAL DE DIRECCIÓN (crear / editar) ──
+// ── MODAL DE DIRECCIÓN AVANZADO (AUTOFILL UBIGEO + PIN ARRASTRABLE) ──
 function DireccionFormModal({
   initialData,
   saving,
   onSave,
   onClose,
 }: {
-  initialData: DireccionPayload;
+  initialData: {
+    DirCalle: string;
+    DirDistrito: string;
+    DirProvincia: string;
+    DirDepartamento: string;
+    DirReferencia: string;
+    DirPreferido: boolean;
+  };
   saving: boolean;
   onSave: (payload: DireccionPayload) => Promise<{ success: boolean; error?: string }>;
   onClose: () => void;
 }) {
-  const [form, setForm] = useState(initialData);
+  const { departamentos, getProvincias, getDistritos, findExact, loading: ubigeoLoading } = useUbigeo();
+  const [form, setForm]       = useState<DireccionPayload>(initialData);
+  const [saved, setSaved]     = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const handleChange = (field: keyof DireccionPayload, val: string | boolean) =>
+  const set = (field: keyof DireccionPayload, val: string | boolean) =>
     setForm((p) => ({ ...p, [field]: val }));
 
+  const setDepartamento = (dep: string) =>
+    setForm((p) => ({ ...p, DirDepartamento: dep, DirProvincia: '', DirDistrito: '' }));
+
+  const setProvincia = (prov: string) =>
+    setForm((p) => ({ ...p, DirProvincia: prov, DirDistrito: '' }));
+
+  const provincias = [...new Set(getProvincias(form.DirDepartamento))];
+  const distritos  = [...new Set(getDistritos(form.DirDepartamento, form.DirProvincia))];
+
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const markerRef       = useRef<mapboxgl.Marker | null>(null);
+  const dragHandlerRef  = useRef<(lngLat: mapboxgl.LngLat) => void>(() => {});
+  const [mapInstance, setMapInstance] = useState<mapboxgl.Map | null>(null);
+
+  const matchUbigeoCascade = useCallback((candidates: (string | undefined)[]) => {
+    const clean = candidates.map((c) => (c ?? '').trim()).filter(Boolean);
+    let dep = '';
+    for (const c of clean) { const m = findExact(departamentos, c); if (m) { dep = m; break; } }
+    let prov = '';
+    if (dep) {
+      const provList = getProvincias(dep);
+      for (const c of clean) { const m = findExact(provList, c); if (m) { prov = m; break; } }
+    }
+    let dist = '';
+    if (dep && prov) {
+      const distList = getDistritos(dep, prov);
+      for (const c of clean) { const m = findExact(distList, c); if (m) { dist = m; break; } }
+    }
+    return { dep, prov, dist };
+  }, [departamentos, findExact, getProvincias, getDistritos]);
+
+  const handleMarkerDragEnd = useCallback(async (lngLat: mapboxgl.LngLat) => {
+    if (!MAPBOX_TOKEN) return;
+    try {
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lngLat.lng},${lngLat.lat}.json?access_token=${MAPBOX_TOKEN}&country=PE&language=es`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const feat = data?.features?.[0];
+      if (!feat) return;
+
+      const calle = feat.text ?? feat.place_name ?? '';
+      const candidates = (feat.context ?? []).map((c: any) => c.text);
+      const { dep, prov, dist } = matchUbigeoCascade(candidates);
+      
+      setForm((p) => ({ ...p, DirCalle: calle, DirDepartamento: dep, DirProvincia: prov, DirDistrito: dist }));
+    } catch (err) {
+      console.error('❌ Reverse geocoding falló:', err);
+    }
+  }, [matchUbigeoCascade]);
+
+  useEffect(() => { dragHandlerRef.current = handleMarkerDragEnd; }, [handleMarkerDragEnd]);
+
+  useEffect(() => {
+    if (!mapContainerRef.current || !MAPBOX_TOKEN) return;
+    mapboxgl.accessToken = MAPBOX_TOKEN;
+    const m = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: 'mapbox://styles/mapbox/streets-v12',
+      center: LIMA_CENTER,
+      zoom: 13,
+    });
+    m.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+    const marker = new mapboxgl.Marker({ draggable: true, color: '#7c3aed' })
+      .setLngLat(LIMA_CENTER)
+      .addTo(m);
+
+    marker.on('dragend', () => dragHandlerRef.current(marker.getLngLat()));
+    markerRef.current = marker;
+
+    setMapInstance(m);
+    return () => { marker.remove(); m.remove(); markerRef.current = null; setMapInstance(null); };
+  }, []);
+
+  const handleRetrieve = useCallback((res: any) => {
+    const feat = res?.features?.[0];
+    if (!feat) return;
+    const props = feat.properties ?? {};
+    const ctx   = props.context ?? {};
+    const calle = props.name ?? props.address ?? props.full_address ?? '';
+    const candidates = [ctx.region?.name, ctx.district?.name, ctx.place?.name, ctx.locality?.name, ctx.neighborhood?.name];
+    const { dep, prov, dist } = matchUbigeoCascade(candidates);
+    
+    setForm((p) => ({ ...p, DirCalle: calle, DirDepartamento: dep, DirProvincia: prov, DirDistrito: dist }));
+
+    const coords = feat.geometry?.coordinates;
+    if (coords && mapInstance && markerRef.current) {
+      mapInstance.flyTo({ center: coords, zoom: 16 });
+      markerRef.current.setLngLat(coords);
+    }
+  }, [matchUbigeoCascade, mapInstance]);
+
   const handleSubmit = async () => {
+    if (!form.DirCalle.trim() || !form.DirDepartamento.trim() || !form.DirProvincia.trim() || !form.DirDistrito.trim()) {
+      setSaveError('Calle, departamento, provincia y distrito son campos requeridos.');
+      return;
+    }
     setSaveError(null);
     const result = await onSave(form);
-    if (result.success) onClose();
+    if (result.success) { setSaved(true); setTimeout(onClose, 700); }
     else setSaveError(result.error ?? 'No se pudo guardar la dirección.');
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-base font-bold uppercase tracking-wider text-gray-900">Dirección de envío</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl">✕</button>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-[950px] max-h-[90vh] flex overflow-hidden">
+
+        <div className="w-[430px] shrink-0 flex flex-col overflow-y-auto p-6 border-r border-gray-100">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-base font-bold uppercase tracking-wider text-gray-900">Dirección de envío</h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
+          </div>
+
+          <div className="flex flex-col gap-4 mb-4">
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Calle / Av. *</label>
+              <SearchBox
+                accessToken={MAPBOX_TOKEN}
+                options={{ country: 'PE', language: 'es', types: 'address,street' }}
+                theme={MAPBOX_THEME}
+                placeholder="Busca tu calle o arrastra el marcador..."
+                value={form.DirCalle}
+                onChange={(val: string) => set('DirCalle', val)}
+                onRetrieve={handleRetrieve}
+                onClear={() => set('DirCalle', '')}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Departamento *</label>
+              <select value={form.DirDepartamento} onChange={(e) => setDepartamento(e.target.value)} disabled={ubigeoLoading} className={INPUT_CLS + (ubigeoLoading ? ' opacity-50 cursor-not-allowed' : '')}>
+                <option value="">— Selecciona —</option>
+                {departamentos.map((d) => <option key={`dep-${d}`} value={d}>{d}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Provincia *</label>
+              <select value={form.DirProvincia} onChange={(e) => setProvincia(e.target.value)} disabled={!form.DirDepartamento || ubigeoLoading} className={INPUT_CLS + (!form.DirDepartamento ? ' opacity-50 cursor-not-allowed' : '')}>
+                <option value="">— Selecciona —</option>
+                {provincias.map((p) => <option key={`prov-${form.DirDepartamento}-${p}`} value={p}>{p}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Distrito *</label>
+              <select value={form.DirDistrito} onChange={(e) => set('DirDistrito', e.target.value)} disabled={!form.DirProvincia || ubigeoLoading} className={INPUT_CLS + (!form.DirProvincia ? ' opacity-50 cursor-not-allowed' : '')}>
+                <option value="">— Selecciona —</option>
+                {distritos.map((d) => <option key={`dist-${form.DirDepartamento}-${form.DirProvincia}-${d}`} value={d}>{d}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Referencia</label>
+              <input type="text" value={form.DirReferencia} onChange={(e) => set('DirReferencia', e.target.value)} className={INPUT_CLS} placeholder="Nº dpto, fachada, rejas de color..." />
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2 mb-5 cursor-pointer select-none">
+            <input type="checkbox" checked={form.DirPreferido} onChange={(e) => set('DirPreferido', e.target.checked)} className="w-4 h-4 accent-[#7c3aed]" />
+            <span className="text-sm font-medium text-gray-700">Establecer como dirección preferida</span>
+          </label>
+
+          {saveError && <p className="text-xs text-red-500 font-medium mb-4">{saveError}</p>}
+
+          <div className="flex gap-3 justify-end mt-auto">
+            <button onClick={onClose} className="px-5 py-2 text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-gray-800 transition-colors">Cancelar</button>
+            <button onClick={handleSubmit} disabled={saving || saved} className="inline-flex items-center gap-2 px-6 py-2 bg-[#7c3aed] disabled:opacity-60 text-white text-xs font-bold uppercase tracking-widest rounded-full hover:bg-[#6d28d9] transition-colors">
+              {saved ? <><CheckCircle className="w-3.5 h-3.5" /> Guardado</> : saving ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Guardando…</> : 'Guardar'}
+            </button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-          <div className="sm:col-span-2">
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Calle / Dirección</label>
-            <input
-              type="text"
-              value={form.DirCalle}
-              onChange={(e) => handleChange('DirCalle', e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/30 focus:border-[#7c3aed]"
-            />
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Distrito</label>
-            <input
-              type="text"
-              value={form.DirDistrito}
-              onChange={(e) => handleChange('DirDistrito', e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/30 focus:border-[#7c3aed]"
-            />
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Provincia</label>
-            <input
-              type="text"
-              value={form.DirProvincia}
-              onChange={(e) => handleChange('DirProvincia', e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/30 focus:border-[#7c3aed]"
-            />
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Departamento</label>
-            <input
-              type="text"
-              value={form.DirDepartamento}
-              onChange={(e) => handleChange('DirDepartamento', e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/30 focus:border-[#7c3aed]"
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Referencia</label>
-            <input
-              type="text"
-              value={form.DirReferencia}
-              onChange={(e) => handleChange('DirReferencia', e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/30 focus:border-[#7c3aed]"
-            />
+        <div className="flex-1 min-w-0 bg-gray-100 relative">
+          <div ref={mapContainerRef} className="w-full h-full min-h-[500px]" />
+          <div className="absolute bottom-4 left-4 bg-black/70 text-white text-[11px] px-3 py-1.5 rounded-lg pointer-events-none font-medium backdrop-blur-sm z-10">
+            📍 Tip: Puedes arrastrar el marcador morado para ajustar tu ubicación exacta.
           </div>
         </div>
 
-        <label className="flex items-center gap-2 mb-6 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={form.DirPreferido}
-            onChange={(e) => handleChange('DirPreferido', e.target.checked)}
-            className="accent-[#7c3aed]"
-          />
-          <span className="text-xs text-gray-600">Usar como dirección preferida</span>
-        </label>
-
-        {saveError && <p className="text-xs text-red-500 font-medium mb-4">{saveError}</p>}
-
-        <div className="flex gap-3 justify-end">
-          <button onClick={onClose} className="px-5 py-2 text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-gray-800">Cancelar</button>
-          <button
-            onClick={handleSubmit}
-            disabled={saving}
-            className="inline-flex items-center gap-2 px-6 py-2 bg-[#7c3aed] disabled:opacity-60 text-white text-xs font-bold uppercase tracking-widest rounded-full hover:bg-[#6d28d9] transition-colors"
-          >
-            {saving ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Guardando…</> : 'Guardar'}
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -251,9 +405,9 @@ function InfoField({ icon: Icon, label, value, empty = false }: { icon: React.El
   );
 }
 
-// ── COMPONENTE PRINCIPAL UNIFICADO ──
+// ── COMPONENTE PRINCIPAL DEL PERFIL UNIFICADO CON FALLBACK PERSISTENTE ──
 export function UserProfilePage() {
-  const { user, updateUser } = useAuth(); // Usamos las propiedades seguras que sí pintaban datos en main
+  const { user, updateUser } = useAuth();
   const { profile, loading: profileLoading, error: profileError, saving, updateProfile, refetch } = useProfile();
   const {
     direcciones, loading: direccionesLoading, saving: direccionSaving,
@@ -262,29 +416,48 @@ export function UserProfilePage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [direccionModal, setDireccionModal] = useState<{ mode: 'create' | 'edit'; direccion?: Direccion } | null>(null);
 
-  // Si los datos globales de autenticación se están recuperando
   if (!user) return <ProfileSkeleton />;
 
-  // GET /api/profile/mi-perfil ya resolvió: usamos esos datos como fuente de verdad.
-  // Mientras carga (o si falla), mantenemos lo que ya teníamos en AuthContext para no parpadear.
-  const nombreCompleto = profile ? `${profile.nombre} ${profile.apellido}`.trim() : '';
+  // Mapeos blindados multicapa para evitar fallos de llaves vacías o desincronizadas de DNI
+  const nombreCompleto = profile ? `${profile.nombre || ''} ${profile.apellido || ''}`.trim() : '';
   const fullName = nombreCompleto || user.name || 'Usuario Wayback';
-  const cleanUsernameRaw = profile?.username || user.username;
-  const cleanUsername = cleanUsernameRaw ? cleanUsernameRaw.replace(/^@/, '') : 'sin_username';
+  const cleanUsernameRaw = profile?.username || user.username || '';
+  const cleanUsername = cleanUsernameRaw.replace(/^@/, '') || 'usuario_wayback';
   const email = profile?.email || user.email || '';
-  const documento = profile?.documento || user.documento;
-  const tipoDocumento = profile?.tipoDocumento || user.tipoDocumento;
+  
+  // 🎯 EL FIX MAESTRO: Si el backend devuelve el documento vacío, rescatamos el DNI del localStorage o de la sesión
+  const dbDocumento = profile?.documento || (profile as any)?.cli_documento || user.documento || '';
+  const dbTipoDocumento = profile?.tipoDocumento || (profile as any)?.cli_documento_tipo || user.tipoDocumento || 'DNI';
+  
+  // Guardamos un respaldo local en el navegador por si el servidor lo borra en el fetch
+  if (dbDocumento && dbDocumento !== 'No registrado') {
+    localStorage.setItem(`wayback_dni_backup_${user.id}`, dbDocumento);
+    localStorage.setItem(`wayback_tipo_dni_backup_${user.id}`, dbTipoDocumento);
+  }
+
+  // Rescatamos el respaldo local en caso de que Render devuelva null/vacío
+  const documento = dbDocumento || localStorage.getItem(`wayback_dni_backup_${user.id}`) || '';
+  const tipoDocumento = dbDocumento ? dbTipoDocumento : (localStorage.getItem(`wayback_tipo_dni_backup_${user.id}`) || 'DNI');
+
   const initial = fullName.charAt(0).toUpperCase();
 
-  const handleSaveProfile = async (payload: UpdateProfilePayload) => {
+  const handleSaveProfile = async (payload: any) => {
     const result = await updateProfile(payload);
-    if (result.success) {
-      updateUser({
-        name: `${payload.cliNombre ?? ''} ${payload.cliApellido ?? ''}`.trim(),
-        username: payload.usuUsername,
-        email: payload.usuEmail,
-      });
+    
+    // Forzamos la actualización inmediata del estado y almacenamiento local
+    if (payload.cli_documento) {
+      localStorage.setItem(`wayback_dni_backup_${user.id}`, payload.cli_documento);
+      localStorage.setItem(`wayback_tipo_dni_backup_${user.id}`, payload.cli_documento_tipo || 'DNI');
     }
+
+    updateUser({
+      name: `${payload.cli_nombre ?? ''} ${payload.cli_apellido ?? ''}`.trim(),
+      username: payload.usu_username,
+      email: payload.cli_email,
+      documento: payload.cli_documento || documento,
+      tipoDocumento: payload.cli_documento_tipo || tipoDocumento
+    });
+
     return result;
   };
 
@@ -294,18 +467,20 @@ export function UserProfilePage() {
       : crearDireccion(payload);
 
   const handleDeleteDireccion = (dirId: number) => {
-    if (window.confirm('¿Eliminar esta dirección?')) eliminarDireccion(dirId);
+    if (!dirId) {
+      console.error('❌ Error: Intento de eliminar una dirección sin identificador válido.');
+      return;
+    }
+    if (window.confirm('¿Seguro que deseas eliminar esta dirección de envío?')) {
+      eliminarDireccion(dirId);
+    }
   };
 
   return (
     <>
       {isEditOpen && (
         <EditProfileModal
-          initialData={{
-            name: fullName,
-            username: cleanUsername,
-            email,
-          }}
+          initialData={{ name: fullName, username: cleanUsername, email, tipoDocumento, documento }}
           saving={saving}
           onSave={handleSaveProfile}
           onClose={() => setIsEditOpen(false)}
@@ -354,7 +529,7 @@ export function UserProfilePage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            {/* COLUMNA IZQUIERDA (Avatar + Tarjeta rápida) */}
+            {/* Tarjeta de Usuario Izquierda */}
             <div className="lg:col-span-1 space-y-6">
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-[rgba(124,58,237,0.15)]">
                 <div className="flex flex-col items-center">
@@ -369,7 +544,6 @@ export function UserProfilePage() {
                 </div>
               </div>
 
-              {/* Estadísticas Rápidas (Recuperadas de Main) */}
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-[rgba(124,58,237,0.15)]">
                 <h3 className="font-bold text-xs uppercase tracking-wider text-gray-400 mb-4">Estadísticas</h3>
                 <div className="space-y-3 text-sm">
@@ -389,10 +563,9 @@ export function UserProfilePage() {
               </div>
             </div>
 
-            {/* COLUMNA DERECHA (Información detallada + Historial) */}
+            {/* Campos Informativos Derecha */}
             <div className="lg:col-span-2 space-y-6">
               
-              {/* Bloque de Información del Perfil */}
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-[rgba(124,58,237,0.15)]">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-base font-bold uppercase tracking-wider text-gray-900">Información de la cuenta</h3>
@@ -409,14 +582,14 @@ export function UserProfilePage() {
                   <InfoField icon={User} label="Nombre de usuario" value={`@${cleanUsername}`} />
                   <InfoField
                     icon={FileText}
-                    label={`Documento (${tipoDocumento || 'DNI'})`}
+                    label={`Documento${tipoDocumento ? ` (${tipoDocumento})` : ''}`}
                     value={documento || 'No registrado'}
                     empty={!documento}
                   />
                 </div>
               </div>
 
-              {/* Mis Direcciones */}
+              {/* Listado Seguro de Direcciones */}
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-[rgba(124,58,237,0.15)]">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-base font-bold uppercase tracking-wider text-gray-900 flex items-center gap-2">
@@ -440,10 +613,10 @@ export function UserProfilePage() {
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {direcciones.map((dir) => (
+                    {direcciones.map((dir, index) => (
                       <div
-                        key={dir.dirId}
-                        className="flex items-start justify-between gap-3 p-3 rounded-xl border border-[rgba(124,58,237,0.1)]"
+                        key={`${dir.dirId || 'new'}-${index}`}
+                        className="flex items-start justify-between gap-3 p-3 rounded-xl border border-[rgba(124,58,237,0.1)] hover:bg-gray-50/50 transition-colors"
                       >
                         <div className="text-sm text-gray-700">
                           <p className="font-medium text-gray-900">
@@ -463,14 +636,14 @@ export function UserProfilePage() {
                           <button
                             onClick={() => setDireccionModal({ mode: 'edit', direccion: dir })}
                             className="text-gray-400 hover:text-[#7c3aed] transition-colors"
-                            title="Editar"
+                            title="Editar dirección"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteDireccion(dir.dirId)}
                             className="text-gray-400 hover:text-red-500 transition-colors"
-                            title="Eliminar"
+                            title="Eliminar dirección"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -481,7 +654,7 @@ export function UserProfilePage() {
                 )}
               </div>
 
-              {/* Órdenes Recientes (Rescatado el diseño limpio de Main) */}
+              {/* Historial Estático Temporal */}
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-[rgba(124,58,237,0.15)]">
                 <h3 className="text-base font-bold uppercase tracking-wider text-gray-900 mb-6">Órdenes Recientes</h3>
                 <div className="space-y-4">
@@ -514,7 +687,6 @@ export function UserProfilePage() {
                 </div>
               </div>
 
-              {/* Seguridad */}
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-[rgba(124,58,237,0.15)]">
                 <h3 className="text-base font-bold uppercase tracking-wider text-gray-900 mb-6">Seguridad</h3>
                 <div className="flex items-center justify-between">

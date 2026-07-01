@@ -220,13 +220,13 @@ export async function registerClienteApi(data: RegisterData): Promise<{ success:
       // (login, perfil). Las claves planas (sin prefijo) que se enviaban antes no
       // calzaban con el DTO real, así que el documento nunca llegaba a guardarse.
       body: JSON.stringify({
-        usuEmail: data.Email,
-        usuUsername: data.NombreUsuario,
-        usuContrasena: data.Contrasena,
-        cliNombre: data.Nombres,
-        cliApellido: data.Apellidos,
-        cliTipoDocumento: data.TipoDocumento,
-        cliDocumento: data.Documento
+        Email:          data.Email,
+        NombreUsuario:  data.NombreUsuario,
+        Contrasena:     data.Contrasena,
+        Nombres:        data.Nombres,
+        Apellidos:      data.Apellidos,
+        TipoDocumento:  data.TipoDocumento,
+        Documento:      data.Documento,
       }),
     });
 
@@ -275,15 +275,23 @@ const parseCliente = (item: ClienteApi): Cliente => ({
 });
 
 // [P5 FIX] Parser para Direccion
-const parseDireccion = (item: DireccionApi): Direccion => ({
-  dirId: Number(item.dirId ?? item.DirId ?? 0),
-  dirCalle: String(item.dirCalle ?? item.DirCalle ?? ''),
-  dirDistrito: String(item.dirDistrito ?? item.DirDistrito ?? ''),
-  dirProvincia: String(item.dirProvincia ?? item.DirProvincia ?? ''),
-  dirDepartamento: String(item.dirDepartamento ?? item.DirDepartamento ?? ''),
-  dirReferencia: String(item.dirReferencia ?? item.DirReferencia ?? ''),
-  dirPreferido: Boolean(item.dirPreferido ?? item.DirPreferido ?? false),
-});
+// [P5 FIX] Parser para Direccion totalmente insensible a variaciones de llaves
+const parseDireccion = (item: DireccionApi): Direccion => {
+  const obj: Record<string, any> = {};
+  if (item && typeof item === 'object') {
+    Object.keys(item).forEach(key => { obj[key.toLowerCase()] = (item as any)[key]; });
+  }
+
+  return {
+    dirId: Number(obj['dirid'] ?? obj['dir_id'] ?? obj['id'] ?? obj['direccionid'] ?? 0),
+    dirCalle: String(obj['dircalle'] ?? obj['dir_calle'] ?? obj['calle'] ?? ''),
+    dirDistrito: String(obj['dirdistrito'] ?? obj['dir_distrito'] ?? obj['distrito'] ?? ''),
+    dirProvincia: String(obj['dirprovincia'] ?? obj['dir_provincia'] ?? obj['provincia'] ?? ''),
+    dirDepartamento: String(obj['dirdepartamento'] ?? obj['dir_departamento'] ?? obj['departamento'] ?? ''),
+    dirReferencia: String(obj['dirreferencia'] ?? obj['dir_referencia'] ?? obj['referencia'] ?? ''),
+    dirPreferido: Boolean(obj['dirpreferido'] ?? obj['dir_preferido'] ?? obj['preferido'] ?? false),
+  };
+};
 
 // 🎯 Parser de productos insensible a mayúsculas/minúsculas
 const parseProducto = (item: any): Product => {
@@ -387,7 +395,21 @@ export async function fetchJson<T>(url: string, options: RequestInit = {}): Prom
   const res = await fetch(url, { ...options, headers });
 
   if (!res.ok) {
-    throw new Error(`HTTP Error: ${res.status} en la ruta ${url}`);
+    let detail = '';
+    try {
+      const text = await res.text();
+      if (text) {
+        try {
+          const json = JSON.parse(text);
+          detail = json.message ?? json.error ?? json.title ?? JSON.stringify(json);
+        } catch {
+          detail = text;
+        }
+      }
+    } catch {
+      // sin body legible, seguimos con el mensaje genérico
+    }
+    throw new Error(`HTTP Error: ${res.status} en la ruta ${url}${detail ? ` — ${detail}` : ''}`);
   }
   if (res.status === 204) return {} as T;
 
