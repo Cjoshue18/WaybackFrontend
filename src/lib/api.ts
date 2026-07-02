@@ -547,7 +547,10 @@ export async function deleteDireccionApi(id: number): Promise<void> {
 // ── MÉTODO DE PRODUCTOS ──
 export async function getProductos(filtros?: FilterOptions): Promise<Product[]> {
   try {
-    const url = new URL(`${API_BASE}/api/productos`);
+    const rawUrl = `${API_BASE}/api/productos`;
+    const url = rawUrl.startsWith('http')
+      ? new URL(rawUrl)
+      : new URL(rawUrl, window.location.origin);
 
     const MAPA_CATEGORIAS_IDS: Record<string, number> = {
       'pantalon': 1,
