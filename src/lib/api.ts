@@ -1,7 +1,5 @@
-// API_BASE vacío → el frontend llama a /api/* relativo al dominio donde está desplegado.
-// En Vercel, esas rutas las atiende api/[...path].js (proxy → Render + mocks de pedidos/pagos).
-// Para desarrollo local, arrancar con: npm run dev:full  (server.js en puerto 3000 + Vite)
-export const API_BASE = import.meta.env.VITE_API_BASE ?? '';
+// Backend de producción en Render — conexión directa, sin proxy intermedio.
+export const API_BASE = 'https://y2kvault-backend.onrender.com';
 
 // ── INTERFACES EXISTENTES ──
 export interface CategoriaApi {
@@ -548,10 +546,7 @@ export async function deleteDireccionApi(id: number): Promise<void> {
 // ── MÉTODO DE PRODUCTOS ──
 export async function getProductos(filtros?: FilterOptions): Promise<Product[]> {
   try {
-    const rawUrl = `${API_BASE}/api/productos`;
-    const url = rawUrl.startsWith('http')
-      ? new URL(rawUrl)
-      : new URL(rawUrl, window.location.origin);
+    const url = new URL(`${API_BASE}/api/productos`);
 
     const MAPA_CATEGORIAS_IDS: Record<string, number> = {
       'pantalon': 1,
@@ -627,71 +622,28 @@ export async function getProductoDetalle(id: number | string): Promise<Product |
 }
 
 // ── PEDIDOS (Checkout) ──
+// Campos obligatorios validados por el backend (.NET DTO):
+//   NumeroYape: exactamente 9 dígitos
+//   CodigoAprobacion: exactamente 6 dígitos
 export interface CrearPedidoPayload {
   dirId: number;
-  // Opcionales: con la pasarela automática ya no se ingresan a mano.
-  NumeroYape?: string;
-  CodigoAprobacion?: string;
+  NumeroYape: string;
+  CodigoAprobacion: string;
   Items: {
     VarId: number;
     Cantidad: number;
-    Precio?: number;
-    precio?: number;
-    Nombre?: string;
-    nombre?: string;
-    Talla?: string;
-    talla?: string;
-    Color?: string;
-    color?: string;
   }[];
 }
 
 export async function crearPedido(payload: CrearPedidoPayload): Promise<{ success: boolean; pedId?: number; error?: string }> {
   try {
-    const data = await fetchJson<{ pedId?: number }>(`${API_BASE}/api/mis-pedidos`, {
+    const data = await fetchJson<{ pedId?: number; PedId?: number }>(`${API_BASE}/api/mis-pedidos`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
-    return { success: true, pedId: data?.pedId };
+    return { success: true, pedId: data?.pedId ?? data?.PedId };
   } catch (err: any) {
     return { success: false, error: err?.message ?? 'No se pudo confirmar el pedido.' };
-  }
-}
-
-// ── PASARELA DE PAGO AUTOMÁTICA ──
-export interface PreferenciaPagoPayload {
-  Items: { precio: number; cantidad: number }[];
-}
-
-export interface PreferenciaPago {
-  preferenceId: string;
-  monto: number;
-  initPoint: string;
-}
-
-// Crea la preferencia de pago (paso 1: el frontend "abre" la pasarela).
-export async function crearPreferenciaPago(payload: PreferenciaPagoPayload): Promise<{ success: boolean; data?: PreferenciaPago; error?: string }> {
-  try {
-    const data = await fetchJson<PreferenciaPago>(`${API_BASE}/api/pagos/crear-preferencia`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-    return { success: true, data };
-  } catch (err: any) {
-    return { success: false, error: err?.message ?? 'No se pudo iniciar el pago.' };
-  }
-}
-
-// Notifica el resultado del pago (paso final: aprueba el pedido vía webhook).
-export async function notificarPagoWebhook(pedidoId: number, estado: 'aprobado' | 'rechazado' = 'aprobado'): Promise<{ success: boolean; error?: string }> {
-  try {
-    await fetchJson(`${API_BASE}/api/pagos/webhook`, {
-      method: 'POST',
-      body: JSON.stringify({ estado, pedidoId }),
-    });
-    return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err?.message ?? 'No se pudo confirmar el pago.' };
   }
 }
 

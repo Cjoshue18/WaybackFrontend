@@ -1,192 +1,187 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { ShoppingBag, Minus, Plus, Trash2, Tag, Truck, ShieldCheck, MapPin, RefreshCw, CreditCard, Lock, CheckCircle2, Loader2 } from 'lucide-react';
+import {
+  ShoppingBag, Minus, Plus, Trash2, Truck, ShieldCheck,
+  MapPin, RefreshCw, Lock, CheckCircle2, Loader2, Smartphone, Hash,
+} from 'lucide-react';
 import { useCart } from '@/app/hooks/useCart';
 import { useDirecciones } from '@/app/hooks/useProfile';
-import { crearPedido, crearPreferenciaPago, notificarPagoWebhook } from '@/lib/api';
+import { crearPedido } from '@/lib/api';
 import { Toaster } from '@/app/components/ui/sonner';
+
+// ── Número de Yape del negocio ── (cambia por el número real)
+const YAPE_NEGOCIO_NUMERO = '987 654 321';
+const YAPE_NEGOCIO_NOMBRE = 'Wayback Store';
+
+type Paso = 'carrito' | 'yape' | 'procesando' | 'exito';
+
+interface YapeForm {
+  numero: string;
+  codigo: string;
+}
+interface YapeErrors {
+  numero?: string;
+  codigo?: string;
+}
 
 export function CartPage() {
   const { items: cartItems, updateQuantity, removeItem, clearCart } = useCart();
   const { direcciones, loading: direccionesLoading } = useDirecciones();
-  const [couponCode, setCouponCode] = useState('');
 
   const [selectedDirId, setSelectedDirId] = useState<number | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  // Estado de la pasarela para el overlay de animación.
-  const [pagoEstado, setPagoEstado] = useState<'idle' | 'procesando' | 'exito'>('idle');
+  const [paso, setPaso]                   = useState<Paso>('carrito');
+  const [yape, setYape]                   = useState<YapeForm>({ numero: '', codigo: '' });
+  const [errors, setErrors]               = useState<YapeErrors>({});
 
+  // ── Cálculos ──────────────────────────────────────────────────────────────
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shipping = subtotal > 1500 ? 0 : 150;
-  const discount = 0;
-  const total = subtotal + shipping - discount;
+  const shipping  = subtotal > 1500 ? 0 : 150;
+  const total     = subtotal + shipping;
 
-  // El backend exige VarId por ítem: si algo en el carrito no tiene variante asociada, no se puede facturar.
   const itemsSinVariante = cartItems.some((item) => !item.varId);
-  const puedeConfirmar =
-    !submitting &&
-    cartItems.length > 0 &&
-    !itemsSinVariante &&
-    selectedDirId !== null;
+  const puedeIrAPagar    =
+    cartItems.length > 0 && !itemsSinVariante && selectedDirId !== null;
 
-  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  // ── Yape form helpers ─────────────────────────────────────────────────────
+  const soloDigitos = (val: string, max: number) =>
+    val.replace(/\D/g, '').slice(0, max);
 
-  // ── FLUJO DE PAGO 100% AUTOMÁTICO ──
-  // 1) crea la preferencia → 2) anima la "apertura" de la pasarela →
-  // 3) crea el pedido → 4) dispara el webhook que lo aprueba automáticamente.
-  const handlePagoSeguro = async () => {
-    if (!puedeConfirmar || selectedDirId === null) return;
-    setSubmitting(true);
-    setPagoEstado('procesando');
+  const handleYapeChange = (field: keyof YapeForm, raw: string, max: number) => {
+    setYape((prev) => ({ ...prev, [field]: soloDigitos(raw, max) }));
+    setErrors((prev) => ({ ...prev, [field]: undefined }));
+  };
 
-    // 1) Preferencia de pago (monto calculado en el server con los ítems reales).
-    const pref = await crearPreferenciaPago({
-      Items: cartItems.map((item) => ({ precio: item.price, cantidad: item.quantity })),
-    });
+  const validar = (): boolean => {
+    const e: YapeErrors = {};
+    if (!/^\d{9}$/.test(yape.numero)) e.numero = 'Debe tener exactamente 9 dígitos.';
+    if (!/^\d{6}$/.test(yape.codigo)) e.codigo = 'Debe tener exactamente 6 dígitos.';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
 
-    if (!pref.success) {
-      setPagoEstado('idle');
-      setSubmitting(false);
-      toast.error(pref.error ?? 'No se pudo iniciar el pago.');
-      return;
-    }
+  // ── Confirmar pedido ──────────────────────────────────────────────────────
+  const handleConfirmar = async () => {
+    if (!validar() || selectedDirId === null) return;
 
-    // 2) Simulamos la apertura/procesamiento de la pasarela.
-    await sleep(2000);
+    setPaso('procesando');
 
-    // 3) Creamos el pedido (queda 'pendiente' en el server).
-    const pedido = await crearPedido({
-      dirId: selectedDirId,
+    const result = await crearPedido({
+      dirId:            selectedDirId,
+      NumeroYape:       yape.numero,
+      CodigoAprobacion: yape.codigo,
       Items: cartItems.map((item) => ({
-        VarId: item.varId as number,
+        VarId:    item.varId as number,
         Cantidad: item.quantity,
-        Precio: item.price,
-        Nombre: item.name,
-        Talla: item.size,
-        Color: item.color,
       })),
     });
 
-    if (!pedido.success || !pedido.pedId) {
-      setPagoEstado('idle');
-      setSubmitting(false);
-      toast.error(pedido.error ?? 'No se pudo registrar el pedido.');
+    if (!result.success) {
+      setPaso('yape');
+      toast.error(result.error ?? 'No se pudo registrar el pedido. Intenta de nuevo.');
       return;
     }
 
-    // 4) Webhook de pago aprobado → el server lo pasa a 'aceptado' automáticamente.
-    await notificarPagoWebhook(pedido.pedId, 'aprobado');
+    setPaso('exito');
+    // Pequeño delay para mostrar animación de éxito
+    await new Promise((r) => setTimeout(r, 1600));
 
-    setPagoEstado('exito');
-    await sleep(1200);
-
-    toast.success('¡Pago aprobado! Tu pedido fue confirmado automáticamente.');
     clearCart();
     setSelectedDirId(null);
-    setSubmitting(false);
-    setPagoEstado('idle');
+    setYape({ numero: '', codigo: '' });
+    setErrors({});
+    setPaso('carrito');
+    toast.success('¡Pedido registrado! Te avisaremos cuando confirmemos tu Yape.');
   };
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto px-6">
-        {/* Header */}
+
+        {/* ─── Header ─── */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-3 mb-2">
             <ShoppingBag className="w-8 h-8 text-[#7c3aed]" />
-            <h1 className="text-3xl font-bold text-[#7c3aed]">
-              Mi Carrito
-            </h1>
+            <h1 className="text-3xl font-bold text-[#7c3aed]">Mi Carrito</h1>
           </div>
-          <p className="text-gray-600">
-            {cartItems.length} {cartItems.length === 1 ? 'artículo' : 'artículos'} en tu carrito
+          <p className="text-gray-500 text-sm">
+            {cartItems.length} {cartItems.length === 1 ? 'artículo' : 'artículos'}
           </p>
         </div>
 
         {cartItems.length === 0 ? (
-          /* Empty Cart */
+          /* ─── Carrito vacío ─── */
           <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-[rgba(124,58,237,0.15)]">
             <ShoppingBag className="w-20 h-20 text-gray-300 mx-auto mb-6" />
-            <h3 className="text-2xl font-semibold text-gray-800 mb-2">
-              Tu carrito está vacío
-            </h3>
-            <p className="text-gray-500 mb-6">
-              Agrega algunos productos para comenzar tu compra
-            </p>
+            <h3 className="text-2xl font-semibold text-gray-800 mb-2">Tu carrito está vacío</h3>
+            <p className="text-gray-500 mb-6">Agrega algunos productos para comenzar tu compra</p>
             <a
               href="/"
-              className="inline-block px-6 py-3 bg-[#7c3aed] text-white rounded-full hover:bg-[#6d28d9] transition-colors"
+              className="inline-block px-6 py-3 bg-[#7c3aed] text-white rounded-full hover:bg-[#6d28d9] transition-colors font-medium"
             >
               Explorar productos
             </a>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Cart Items */}
+
+            {/* ─── Columna izquierda: productos ─── */}
             <div className="lg:col-span-2 space-y-4">
+
+              {/* Lista de ítems */}
               {cartItems.map((item) => (
                 <div
                   key={item.cartKey}
                   className="bg-white rounded-2xl p-6 shadow-sm border border-[rgba(124,58,237,0.15)] hover:shadow-md transition-shadow"
                 >
                   <div className="flex gap-4">
-                    {/* Image */}
-                    <div className="w-24 h-32 flex-shrink-0 rounded-xl overflow-hidden">
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="w-full h-full object-cover"
-                      />
+                    <div className="w-24 h-32 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100">
+                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                     </div>
-
-                    {/* Info */}
                     <div className="flex-1">
-                      <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-start justify-between mb-1">
                         <div>
-                          <h3 className="font-semibold text-gray-800 mb-1">
-                            {item.name}
-                          </h3>
-                          <p className="text-sm text-gray-500">
-                            Talla: {item.size} • Color: {item.color}
+                          <h3 className="font-semibold text-gray-800">{item.name}</h3>
+                          <p className="text-sm text-gray-400 mt-0.5">
+                            Talla: {item.size} &bull; Color: {item.color}
                           </p>
                         </div>
                         <button
                           onClick={() => removeItem(item.cartKey)}
-                          className="p-2 hover:bg-red-50 rounded-full transition-colors text-gray-400 hover:text-red-600"
+                          className="p-2 hover:bg-red-50 rounded-full transition-colors text-gray-300 hover:text-red-500"
+                          aria-label="Eliminar producto"
                         >
-                          <Trash2 className="w-5 h-5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
 
                       <div className="flex items-center justify-between mt-4">
-                        {/* Quantity Controls */}
+                        {/* Cantidad */}
                         <div className="flex items-center gap-3">
                           <button
                             onClick={() => updateQuantity(item.cartKey, -1)}
-                            className="w-8 h-8 rounded-full border border-[rgba(124,58,237,0.2)] flex items-center justify-center hover:bg-[rgba(124,58,237,0.05)] transition-colors"
+                            className="w-8 h-8 rounded-full border border-[rgba(124,58,237,0.25)] flex items-center justify-center hover:bg-[rgba(124,58,237,0.06)] transition-colors"
                           >
-                            <Minus className="w-4 h-4 text-[#7c3aed]" />
+                            <Minus className="w-3.5 h-3.5 text-[#7c3aed]" />
                           </button>
-                          <span className="w-8 text-center font-semibold text-gray-800">
+                          <span className="w-6 text-center font-semibold text-gray-800 text-sm">
                             {item.quantity}
                           </span>
                           <button
                             onClick={() => updateQuantity(item.cartKey, 1)}
-                            className="w-8 h-8 rounded-full border border-[rgba(124,58,237,0.2)] flex items-center justify-center hover:bg-[rgba(124,58,237,0.05)] transition-colors"
+                            className="w-8 h-8 rounded-full border border-[rgba(124,58,237,0.25)] flex items-center justify-center hover:bg-[rgba(124,58,237,0.06)] transition-colors"
                           >
-                            <Plus className="w-4 h-4 text-[#7c3aed]" />
+                            <Plus className="w-3.5 h-3.5 text-[#7c3aed]" />
                           </button>
                         </div>
 
-                        {/* Price */}
+                        {/* Precio */}
                         <div className="text-right">
-                          <p className="text-lg font-bold text-gray-800">
-                            ${(item.price * item.quantity).toLocaleString()}
+                          <p className="text-base font-bold text-gray-800">
+                            S/. {(item.price * item.quantity).toFixed(2)}
                           </p>
                           {item.quantity > 1 && (
-                            <p className="text-sm text-gray-500">
-                              ${item.price} c/u
-                            </p>
+                            <p className="text-xs text-gray-400">S/. {item.price.toFixed(2)} c/u</p>
                           )}
                         </div>
                       </div>
@@ -195,81 +190,69 @@ export function CartPage() {
                 </div>
               ))}
 
-              {/* Benefits */}
-              <div className="bg-[rgba(124,58,237,0.04)] rounded-2xl p-6 border border-[rgba(124,58,237,0.15)]">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Beneficios */}
+              <div className="bg-[rgba(124,58,237,0.03)] rounded-2xl p-6 border border-[rgba(124,58,237,0.12)]">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex items-start gap-3">
                     <Truck className="w-5 h-5 text-[#7c3aed] flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-semibold text-gray-800 text-sm mb-1">
-                        Envío gratis
-                      </p>
-                      <p className="text-xs text-gray-600">
-                        En compras mayores a $1,500
-                      </p>
+                      <p className="font-semibold text-gray-800 text-sm">Envío gratis</p>
+                      <p className="text-xs text-gray-500">En compras mayores a S/. 1,500</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <ShieldCheck className="w-5 h-5 text-[#7c3aed] flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-semibold text-gray-800 text-sm mb-1">
-                        Compra segura
-                      </p>
-                      <p className="text-xs text-gray-600">
-                        Protección al comprador
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <Tag className="w-5 h-5 text-[#7c3aed] flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-semibold text-gray-800 text-sm mb-1">
-                        Mejor precio
-                      </p>
-                      <p className="text-xs text-gray-600">
-                        Garantía de devolución
-                      </p>
+                      <p className="font-semibold text-gray-800 text-sm">Compra segura</p>
+                      <p className="text-xs text-gray-500">Verificamos tu pago Yape manualmente</p>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Order Summary + Checkout */}
-            <div className="lg:col-span-1 space-y-6">
+            {/* ─── Columna derecha: resumen + checkout ─── */}
+            <div className="lg:col-span-1 space-y-4">
+
               {/* Dirección de envío */}
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-[rgba(124,58,237,0.15)]">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-gray-800 mb-4 flex items-center gap-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700 mb-4 flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-[#7c3aed]" /> Dirección de envío
                 </h3>
 
                 {direccionesLoading ? (
                   <p className="text-xs text-gray-400 flex items-center gap-2">
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Cargando direcciones…
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Cargando…
                   </p>
                 ) : direcciones.length === 0 ? (
                   <p className="text-xs text-gray-400">
-                    No tienes direcciones guardadas. Agrega una desde tu perfil antes de continuar.
+                    No tienes direcciones guardadas. Agrega una desde{' '}
+                    <a href="/perfil" className="text-[#7c3aed] underline">tu perfil</a>.
                   </p>
                 ) : (
                   <div className="space-y-2">
                     {direcciones.map((dir) => (
                       <label
                         key={dir.dirId}
-                        className="flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors"
-                        style={{ borderColor: selectedDirId === dir.dirId ? '#7c3aed' : '#e5e7eb' }}
+                        className="flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all"
+                        style={{
+                          borderColor: selectedDirId === dir.dirId ? '#7c3aed' : '#e5e7eb',
+                          background:  selectedDirId === dir.dirId ? 'rgba(124,58,237,0.04)' : 'transparent',
+                        }}
                       >
                         <input
                           type="radio"
-                          name="direccionEnvio"
+                          name="dir"
                           checked={selectedDirId === dir.dirId}
                           onChange={() => setSelectedDirId(dir.dirId)}
                           className="mt-1 accent-[#7c3aed]"
                         />
-                        <span className="text-sm text-gray-700">
+                        <span className="text-sm text-gray-700 leading-snug">
                           {dir.dirCalle}, {dir.dirDistrito} — {dir.dirProvincia}
                           {dir.dirPreferido && (
-                            <span className="ml-2 text-[10px] font-bold uppercase text-[#7c3aed]">Preferida</span>
+                            <span className="ml-2 text-[10px] font-bold uppercase text-[#7c3aed] bg-[rgba(124,58,237,0.1)] px-1.5 py-0.5 rounded">
+                              Preferida
+                            </span>
                           )}
                         </span>
                       </label>
@@ -278,118 +261,174 @@ export function CartPage() {
                 )}
               </div>
 
-              {/* Pago Seguro (pasarela automática) */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-[rgba(124,58,237,0.15)]">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-gray-800 mb-4 flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-[#7c3aed]" /> Pago Seguro
-                </h3>
+              {/* ─── Formulario Yape (paso 'yape') ─── */}
+              {paso === 'yape' && (
+                <div className="bg-white rounded-2xl p-6 shadow-md border-2 border-[#7c3aed]">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700 mb-4 flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-[#7c3aed]" /> Pago con Yape
+                  </h3>
 
-                <div className="rounded-2xl p-5 bg-[rgba(124,58,237,0.04)] border border-[rgba(124,58,237,0.15)] flex items-center gap-4">
-                  <CreditCard className="w-10 h-10 text-[#7c3aed] flex-shrink-0" strokeWidth={1.5} />
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800 mb-0.5">Pasarela de pago integrada</p>
-                    <p className="text-xs text-gray-600 leading-relaxed">
-                      Tu pedido se confirma automáticamente al aprobarse el pago. Sin pasos manuales ni códigos.
+                  {/* Instrucciones */}
+                  <div className="rounded-xl bg-green-50 border border-green-200 p-4 mb-5">
+                    <p className="text-xs font-semibold text-green-800 mb-2">
+                      1. Envía tu pago por Yape a:
+                    </p>
+                    <p className="text-lg font-bold text-green-900 tracking-widest">
+                      {YAPE_NEGOCIO_NUMERO}
+                    </p>
+                    <p className="text-xs text-green-700">{YAPE_NEGOCIO_NOMBRE}</p>
+                    <div className="mt-2 pt-2 border-t border-green-200">
+                      <p className="text-xs text-green-700">
+                        Monto a enviar:{' '}
+                        <span className="font-bold text-green-900">S/. {total.toFixed(2)}</span>
+                      </p>
+                    </div>
+                    <p className="text-xs text-green-600 mt-2">
+                      2. Luego ingresa los datos que aparecen en tu app Yape:
                     </p>
                   </div>
+
+                  {/* Número de celular */}
+                  <div className="mb-4">
+                    <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
+                      Tu número de celular
+                    </label>
+                    <div className="relative">
+                      <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+                      <input
+                        id="yape-numero"
+                        type="tel"
+                        inputMode="numeric"
+                        maxLength={9}
+                        value={yape.numero}
+                        onChange={(e) => handleYapeChange('numero', e.target.value, 9)}
+                        placeholder="987 654 321"
+                        className={`w-full pl-9 pr-4 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/30 transition-all ${
+                          errors.numero
+                            ? 'border-red-400 bg-red-50'
+                            : 'border-[rgba(124,58,237,0.25)] focus:border-[#7c3aed]'
+                        }`}
+                      />
+                    </div>
+                    {errors.numero && (
+                      <p className="text-xs text-red-500 mt-1">{errors.numero}</p>
+                    )}
+                  </div>
+
+                  {/* Código de aprobación */}
+                  <div className="mb-5">
+                    <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
+                      Código de aprobación (6 dígitos)
+                    </label>
+                    <div className="relative">
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+                      <input
+                        id="yape-codigo"
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={yape.codigo}
+                        onChange={(e) => handleYapeChange('codigo', e.target.value, 6)}
+                        placeholder="123456"
+                        className={`w-full pl-9 pr-4 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/30 transition-all ${
+                          errors.codigo
+                            ? 'border-red-400 bg-red-50'
+                            : 'border-[rgba(124,58,237,0.25)] focus:border-[#7c3aed]'
+                        }`}
+                      />
+                    </div>
+                    {errors.codigo && (
+                      <p className="text-xs text-red-500 mt-1">{errors.codigo}</p>
+                    )}
+                  </div>
+
+                  {/* Botones */}
+                  <button
+                    id="btn-confirmar-pedido"
+                    onClick={handleConfirmar}
+                    className="w-full py-3 bg-[#7c3aed] text-white rounded-full hover:bg-[#6d28d9] active:scale-[0.98] transition-all font-semibold text-sm flex items-center justify-center gap-2"
+                  >
+                    <Lock className="w-4 h-4" /> Confirmar pedido
+                  </button>
+                  <button
+                    onClick={() => { setPaso('carrito'); setErrors({}); }}
+                    className="w-full mt-2 py-2 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    Cancelar
+                  </button>
                 </div>
+              )}
 
-                {itemsSinVariante && (
-                  <p className="text-xs text-red-500 mt-4">
-                    Algunos productos del carrito no tienen una variante válida (talla/color). Quítalos y agrégalos de nuevo desde el catálogo.
-                  </p>
-                )}
-              </div>
-
+              {/* ─── Resumen de la orden ─── */}
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-[rgba(124,58,237,0.15)] sticky top-24">
-                <h3 className="text-lg font-semibold text-gray-800 mb-6">
-                  Resumen de compra
-                </h3>
+                <h3 className="text-base font-semibold text-gray-800 mb-5">Resumen</h3>
 
-                {/* Coupon */}
-                <div className="mb-6">
-                  <label className="text-sm text-gray-600 mb-2 block">
-                    Código de descuento
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value)}
-                      placeholder="Ingresa tu código"
-                      className="flex-1 px-4 py-2 border border-[rgba(124,58,237,0.2)] rounded-full focus:outline-none focus:border-[#7c3aed] text-sm"
-                    />
-                    <button className="px-6 py-2 bg-[#7c3aed] text-white rounded-full hover:bg-[#6d28d9] transition-colors text-sm">
-                      Aplicar
-                    </button>
-                  </div>
-                </div>
-
-                {/* Price Breakdown */}
-                <div className="space-y-3 mb-6 pb-6 border-b border-[rgba(124,58,237,0.15)]">
-                  <div className="flex justify-between text-gray-600">
+                <div className="space-y-2.5 mb-5 pb-5 border-b border-gray-100">
+                  <div className="flex justify-between text-sm text-gray-600">
                     <span>Subtotal</span>
-                    <span>${subtotal.toLocaleString()}</span>
+                    <span>S/. {subtotal.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-gray-600">
+                  <div className="flex justify-between text-sm text-gray-600">
                     <span>Envío</span>
                     <span>
                       {shipping === 0 ? (
                         <span className="text-green-600 font-semibold">Gratis</span>
                       ) : (
-                        `$${shipping}`
+                        `S/. ${shipping.toFixed(2)}`
                       )}
                     </span>
                   </div>
-                  {discount > 0 && (
-                    <div className="flex justify-between text-green-600">
-                      <span>Descuento</span>
-                      <span>-${discount.toLocaleString()}</span>
-                    </div>
-                  )}
                 </div>
 
-                {/* Total */}
-                <div className="flex justify-between mb-6">
-                  <span className="text-lg font-semibold text-gray-800">Total</span>
-                  <span className="text-2xl font-bold text-[#7c3aed]">
-                    ${total.toLocaleString()}
-                  </span>
+                <div className="flex justify-between items-baseline mb-6">
+                  <span className="text-base font-semibold text-gray-800">Total</span>
+                  <span className="text-2xl font-bold text-[#7c3aed]">S/. {total.toFixed(2)}</span>
                 </div>
 
-                {/* Checkout Button — Pago Seguro automático */}
-                <button
-                  onClick={handlePagoSeguro}
-                  disabled={!puedeConfirmar}
-                  className="w-full py-4 bg-[#7c3aed] text-white rounded-full hover:bg-[#6d28d9] transition-colors font-semibold mb-3 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {submitting ? <><RefreshCw className="w-4 h-4 animate-spin" /> Procesando pago…</> : '💳 Proceder al Pago Seguro'}
-                </button>
-                {!selectedDirId && cartItems.length > 0 && (
-                  <p className="text-xs text-gray-400 text-center mb-3">Selecciona una dirección de envío para continuar.</p>
+                {/* Botón principal: "Pagar con Yape" */}
+                {paso === 'carrito' && (
+                  <>
+                    {itemsSinVariante && (
+                      <p className="text-xs text-red-500 mb-3 text-center">
+                        Algunos productos no tienen talla/color válida. Quítalos y agrégalos de nuevo desde el catálogo.
+                      </p>
+                    )}
+                    {!selectedDirId && !itemsSinVariante && (
+                      <p className="text-xs text-gray-400 mb-3 text-center">
+                        Selecciona una dirección para continuar.
+                      </p>
+                    )}
+                    <button
+                      id="btn-pagar-yape"
+                      onClick={() => setPaso('yape')}
+                      disabled={!puedeIrAPagar}
+                      className="w-full py-3.5 bg-[#7c3aed] text-white rounded-full hover:bg-[#6d28d9] active:scale-[0.98] transition-all font-semibold text-sm mb-3 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      <Smartphone className="w-4 h-4" /> Pagar con Yape
+                    </button>
+                  </>
                 )}
 
-                {/* Continue Shopping */}
                 <a
                   href="/"
-                  className="block text-center text-[#7c3aed] hover:text-[#7c3aed] text-sm"
+                  className="block text-center text-xs text-gray-400 hover:text-[#7c3aed] transition-colors"
                 >
                   Continuar comprando
                 </a>
 
-                {/* Free Shipping Info */}
+                {/* Barra de progreso hacia envío gratis */}
                 {shipping > 0 && (
-                  <div className="mt-6 p-4 bg-[rgba(124,58,237,0.04)] rounded-xl">
-                    <p className="text-sm text-gray-600">
-                      Agrega{' '}
+                  <div className="mt-5 p-4 bg-[rgba(124,58,237,0.04)] rounded-xl">
+                    <p className="text-xs text-gray-600 mb-2">
+                      Te faltan{' '}
                       <span className="font-semibold text-[#7c3aed]">
-                        ${(1500 - subtotal).toLocaleString()}
+                        S/. {(1500 - subtotal).toFixed(2)}
                       </span>{' '}
-                      más para obtener envío gratis
+                      para envío gratis
                     </p>
-                    <div className="mt-2 w-full bg-[rgba(124,58,237,0.2)] rounded-full h-2">
+                    <div className="w-full bg-[rgba(124,58,237,0.15)] rounded-full h-1.5">
                       <div
-                        className="bg-[#7c3aed] h-2 rounded-full transition-all"
+                        className="bg-[#7c3aed] h-1.5 rounded-full transition-all duration-500"
                         style={{ width: `${Math.min((subtotal / 1500) * 100, 100)}%` }}
                       />
                     </div>
@@ -401,25 +440,27 @@ export function CartPage() {
         )}
       </div>
 
-      {/* ── Overlay de la pasarela de pago ── */}
-      {pagoEstado !== 'idle' && (
+      {/* ─── Overlay: procesando / éxito ─── */}
+      {(paso === 'procesando' || paso === 'exito') && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl px-10 py-12 max-w-sm w-full mx-6 text-center shadow-2xl">
-            {pagoEstado === 'procesando' ? (
+            {paso === 'procesando' ? (
               <>
-                <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-[rgba(124,58,237,0.1)] flex items-center justify-center">
+                <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-[rgba(124,58,237,0.1)] flex items-center justify-center">
                   <Loader2 className="w-8 h-8 text-[#7c3aed] animate-spin" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-2">Procesando tu pago…</h3>
-                <p className="text-sm text-gray-500">Estamos contactando con la pasarela de pago segura. No cierres esta ventana.</p>
+                <h3 className="text-lg font-bold text-gray-800 mb-1">Registrando tu pedido…</h3>
+                <p className="text-sm text-gray-400">No cierres esta ventana.</p>
               </>
             ) : (
               <>
-                <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-green-100 flex items-center justify-center">
+                <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-green-100 flex items-center justify-center">
                   <CheckCircle2 className="w-9 h-9 text-green-600" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-2">¡Pago aprobado!</h3>
-                <p className="text-sm text-gray-500">Tu pedido fue confirmado automáticamente.</p>
+                <h3 className="text-lg font-bold text-gray-800 mb-1">¡Pedido recibido!</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">
+                  Verificaremos tu pago Yape y te confirmaremos a la brevedad.
+                </p>
               </>
             )}
           </div>
