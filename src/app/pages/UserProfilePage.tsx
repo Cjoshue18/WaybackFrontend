@@ -29,6 +29,7 @@ const MAPBOX_THEME = {
     boxShadow: 'none',
   },
 };
+const MAPBOX_SEARCH_OPTIONS = { country: 'PE', language: 'es', types: 'address,street' };
 const INPUT_CLS = 'w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/30 focus:border-[#7c3aed] bg-white';
 
 // ── SKELETON DE CARGA ELEGANTE ──
@@ -190,25 +191,29 @@ function EditProfileModal({
 
 // ── MODAL DE DIRECCIÓN AVANZADO (AUTOFILL UBIGEO + PIN ARRASTRABLE) ──
 function DireccionFormModal({
-  initialData,
+  mode,
+  direccion,
   saving,
   onSave,
   onClose,
 }: {
-  initialData: {
-    DirCalle: string;
-    DirDistrito: string;
-    DirProvincia: string;
-    DirDepartamento: string;
-    DirReferencia: string;
-    DirPreferido: boolean;
-  };
+  mode: 'create' | 'edit';
+  direccion?: Direccion;
   saving: boolean;
   onSave: (payload: DireccionPayload) => Promise<{ success: boolean; error?: string }>;
   onClose: () => void;
 }) {
   const { departamentos, getProvincias, getDistritos, findExact, loading: ubigeoLoading } = useUbigeo();
-  const [form, setForm]       = useState<DireccionPayload>(initialData);
+  const [form, setForm]       = useState<DireccionPayload>(() => 
+    direccion ? {
+      DirCalle: direccion.dirCalle,
+      DirDistrito: direccion.dirDistrito,
+      DirProvincia: direccion.dirProvincia,
+      DirDepartamento: direccion.dirDepartamento,
+      DirReferencia: direccion.dirReferencia,
+      DirPreferido: direccion.dirPreferido,
+    } : { DirCalle: '', DirDistrito: '', DirProvincia: '', DirDepartamento: '', DirReferencia: '', DirPreferido: false }
+  );
   const [saved, setSaved]     = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -333,7 +338,7 @@ function DireccionFormModal({
               <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Calle / Av. *</label>
               <SearchBox
                 accessToken={MAPBOX_TOKEN}
-                options={{ country: 'PE', language: 'es', types: 'address,street' }}
+                options={MAPBOX_SEARCH_OPTIONS}
                 theme={MAPBOX_THEME}
                 placeholder="Busca tu calle o arrastra el marcador..."
                 value={form.DirCalle}
@@ -517,18 +522,8 @@ export function UserProfilePage() {
 
       {direccionModal && (
         <DireccionFormModal
-          initialData={
-            direccionModal.direccion
-              ? {
-                  DirCalle: direccionModal.direccion.dirCalle,
-                  DirDistrito: direccionModal.direccion.dirDistrito,
-                  DirProvincia: direccionModal.direccion.dirProvincia,
-                  DirDepartamento: direccionModal.direccion.dirDepartamento,
-                  DirReferencia: direccionModal.direccion.dirReferencia,
-                  DirPreferido: direccionModal.direccion.dirPreferido,
-                }
-              : { DirCalle: '', DirDistrito: '', DirProvincia: '', DirDepartamento: '', DirReferencia: '', DirPreferido: false }
-          }
+          mode={direccionModal.mode}
+          direccion={direccionModal.direccion}
           saving={direccionSaving}
           onSave={handleSaveDireccion}
           onClose={() => setDireccionModal(null)}
