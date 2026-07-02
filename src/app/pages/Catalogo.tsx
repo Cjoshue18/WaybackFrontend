@@ -36,6 +36,13 @@ export function CatalogoPage() {
       resolvedFilters = newFiltersOrFn(filters);
     }
     
+    // Si cambian los filtros (que no sea solo cambiar de página), reseteamos a página 1
+    const changedFilters = { ...resolvedFilters, pagina: 1 };
+    const currentFilters = { ...filters, pagina: 1 };
+    if (JSON.stringify(changedFilters) !== JSON.stringify(currentFilters)) {
+      resolvedFilters.pagina = 1;
+    }
+    
     const urlParams: [string, string][] = [];
     (resolvedFilters.categorias || []).forEach((c: string) => urlParams.push(['categoria', c]));
     (resolvedFilters.estilos || []).forEach((e: string) => urlParams.push(['estilo', e]));
@@ -94,6 +101,37 @@ export function CatalogoPage() {
     setSearchParams([], { replace: true });
   };
 
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+    return (
+      <div className="flex items-center justify-between my-6 py-4 border-t border-slate-100">
+        <button 
+          onClick={() => {
+            setFilters({ ...filters, pagina: Math.max(1, filters.pagina - 1) });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          disabled={filters.pagina === 1}
+          className="flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-[#7c3aed] disabled:opacity-40 disabled:hover:text-slate-600 transition-colors bg-white px-3 py-1.5 rounded-md border border-slate-200"
+        >
+          Anterior
+        </button>
+        <span className="text-xs text-slate-500 font-medium">
+          Página {filters.pagina} de {totalPages} ({totalRegistros} productos)
+        </span>
+        <button 
+          onClick={() => {
+            setFilters({ ...filters, pagina: Math.min(totalPages, filters.pagina + 1) });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          disabled={filters.pagina === totalPages}
+          className="flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-[#7c3aed] disabled:opacity-40 disabled:hover:text-slate-600 transition-colors bg-white px-3 py-1.5 rounded-md border border-slate-200"
+        >
+          Siguiente
+        </button>
+      </div>
+    );
+  };
+
   return (
     /* 👉 CAMBIO AQUÍ: Agregamos 'items-start'.
       Esto evita que la barra de filtros se estire hacia abajo acompañando al catálogo entero.
@@ -105,6 +143,8 @@ export function CatalogoPage() {
         <h2 className="text-xl font-black uppercase tracking-tight mb-6 text-gray-900">
           Catálogo de Productos
         </h2>
+
+        {renderPagination()}
 
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
@@ -121,27 +161,7 @@ export function CatalogoPage() {
         )}
         
         {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-8 pt-4 border-t border-slate-100">
-            <button 
-              onClick={() => setFilters({ ...filters, pagina: Math.max(1, filters.pagina - 1) })}
-              disabled={filters.pagina === 1}
-              className="flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-[#7c3aed] disabled:opacity-40 disabled:hover:text-slate-600 transition-colors bg-white px-3 py-1.5 rounded-md border border-slate-200"
-            >
-              Anterior
-            </button>
-            <span className="text-xs text-slate-500 font-medium">
-              Página {filters.pagina} de {totalPages} ({totalRegistros} productos)
-            </span>
-            <button 
-              onClick={() => setFilters({ ...filters, pagina: Math.min(totalPages, filters.pagina + 1) })}
-              disabled={filters.pagina === totalPages}
-              className="flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-[#7c3aed] disabled:opacity-40 disabled:hover:text-slate-600 transition-colors bg-white px-3 py-1.5 rounded-md border border-slate-200"
-            >
-              Siguiente
-            </button>
-          </div>
-        )}
+        {renderPagination()}
 
         {!loading && productos.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 border border-dashed border-gray-200 bg-white rounded-2xl p-8 mt-2">
