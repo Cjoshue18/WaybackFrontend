@@ -9,7 +9,8 @@ import { useAuth } from '../context/AuthContext';
 import {
   useProfile, useDirecciones,
   type UpdateProfilePayload, type Direccion, type DireccionPayload
-} from '../hooks/useProfile';
+import { useProfile, useDirecciones, type UpdateProfilePayload, type Direccion, type DireccionPayload } from '../hooks/useProfile';
+import { getMisPedidos, type PedidoHistorial } from '@/lib/api';
 import { useUbigeo } from '../hooks/useUbigeo';
 import { SearchBox } from '@mapbox/search-js-react';
 import mapboxgl from 'mapbox-gl';
@@ -421,6 +422,26 @@ export function UserProfilePage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [direccionModal, setDireccionModal] = useState<{ mode: 'create' | 'edit'; direccion?: Direccion } | null>(null);
 
+  // ── ESTADO PARA ÓRDENES ──
+  const [pedidos, setPedidos] = useState<PedidoHistorial[]>([]);
+  const [pedidosLoading, setPedidosLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchPedidos() {
+      try {
+        const data = await getMisPedidos();
+        setPedidos(data);
+      } catch (err) {
+        console.error('Error fetching pedidos', err);
+      } finally {
+        setPedidosLoading(false);
+      }
+    }
+    if (user) {
+      fetchPedidos();
+    }
+  }, [user]);
+
   if (!user) return <ProfileSkeleton />;
 
   // Mapeos blindados multicapa para evitar fallos de llaves vacías o desincronizadas de DNI
@@ -556,7 +577,7 @@ export function UserProfilePage() {
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 font-medium">Órdenes totales</span>
-                    <span className="font-bold text-[#7c3aed]">3</span>
+                    <span className="font-bold text-[#7c3aed]">{pedidos.length}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 font-medium">Favoritos</span>
@@ -661,37 +682,51 @@ export function UserProfilePage() {
                 )}
               </div>
 
-              {/* Historial Estático Temporal */}
+              {/* Historial Real */}
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-[rgba(124,58,237,0.15)]">
                 <h3 className="text-base font-bold uppercase tracking-wider text-gray-900 mb-6">Órdenes Recientes</h3>
-                <div className="space-y-4">
-                  {[
-                    { id: '#WAY-2026-003', date: '12 Jun 2026', status: 'En preparación', amount: 'S/ 189.00', items: 1 },
-                    { id: '#WAY-2026-002', date: '28 May 2026', status: 'Entregado', amount: 'S/ 320.00', items: 2 },
-                    { id: '#WAY-2026-001', date: '10 May 2026', status: 'Entregado', amount: 'S/ 95.00', items: 1 },
-                  ].map((order) => (
-                    <div
-                      key={order.id}
-                      className="flex items-center justify-between p-4 rounded-xl border border-[rgba(124,58,237,0.08)] hover:border-[rgba(124,58,237,0.2)] transition-colors"
-                    >
-                      <div className="flex-1">
-                        <p className="font-bold text-sm text-gray-900 mb-0.5">{order.id}</p>
-                        <p className="text-xs text-gray-400 font-medium">{order.date} • {order.items} {order.items === 1 ? 'artículo' : 'artículos'}</p>
-                      </div>
-                      <div className="flex items-center gap-6">
-                        <div className="text-right">
-                          <p className="font-bold text-sm text-gray-900">{order.amount}</p>
-                          <p className={`text-xs font-bold uppercase tracking-wider ${order.status === 'Entregado' ? 'text-green-600' : 'text-[#7c3aed]'}`}>
-                            {order.status}
-                          </p>
+                {pedidosLoading ? (
+                  <p className="text-xs text-gray-400 flex items-center gap-2">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Cargando órdenes…
+                  </p>
+                ) : pedidos.length === 0 ? (
+                  <p className="text-xs text-gray-400">
+                    Aún no has realizado ninguna orden. ¡Explora nuestro catálogo y haz tu primer pedido!
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {pedidos.map((order) => {
+                      const date = new Date(order.fechaCompra).toLocaleDateString('es-PE', {
+                        day: 'numeric', month: 'short', year: 'numeric'
+                      });
+                      const statusLower = order.estado.toLowerCase();
+                      const isCompleted = statusLower === 'entregado' || statusLower === 'aceptado';
+
+                      return (
+                        <div
+                          key={order.id}
+                          className="flex items-center justify-between p-4 rounded-xl border border-[rgba(124,58,237,0.08)] hover:border-[rgba(124,58,237,0.2)] transition-colors"
+                        >
+                          <div className="flex-1">
+                            <p className="font-bold text-sm text-gray-900 mb-0.5">#WAY-{order.id.toString().padStart(4, '0')}</p>
+                            <p className="text-xs text-gray-400 font-medium">{date}</p>
+                          </div>
+                          <div className="flex items-center gap-6">
+                            <div className="text-right">
+                              <p className="font-bold text-sm text-gray-900">S/ {order.total.toFixed(2)}</p>
+                              <p className={`text-xs font-bold uppercase tracking-wider ${isCompleted ? 'text-green-600' : 'text-[#7c3aed]'}`}>
+                                {order.estado}
+                              </p>
+                            </div>
+                            <button className="text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-black transition-colors" title="El detalle de órdenes estará disponible pronto">
+                              Detalles
+                            </button>
+                          </div>
                         </div>
-                        <button className="text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-black transition-colors">
-                          Detalles
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-[rgba(124,58,237,0.15)]">

@@ -647,6 +647,28 @@ export async function crearPedido(payload: CrearPedidoPayload): Promise<{ succes
   }
 }
 
+export interface PedidoHistorial {
+  id: number;
+  estado: string;
+  total: number;
+  fechaCompra: string;
+}
+
+export async function getMisPedidos(): Promise<PedidoHistorial[]> {
+  try {
+    const data = await fetchJson<any[]>(`${API_BASE}/api/mis-pedidos`);
+    return Array.isArray(data) ? data.map(p => ({
+      id: Number(p.PedId ?? p.pedId ?? p.ped_id ?? 0),
+      estado: String(p.PedEstado ?? p.pedEstado ?? p.ped_estado ?? 'Pendiente'),
+      total: Number(p.PedTotal ?? p.pedTotal ?? p.ped_total ?? 0),
+      fechaCompra: String(p.PedFechaCompra ?? p.pedFechaCompra ?? p.ped_fecha_compra ?? ''),
+    })) : [];
+  } catch (error) {
+    console.error('Error al obtener pedidos:', error);
+    return [];
+  }
+}
+
 // ── ADMIN: REPORTES DE PEDIDOS (reconciliación manual de Yape) ──
 export const ESTADOS_PEDIDO = ['pendiente', 'aceptado', 'rechazado', 'cancelado', 'entregado'] as const;
 export type EstadoPedido = typeof ESTADOS_PEDIDO[number];
