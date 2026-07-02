@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, SlidersHorizontal } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, SlidersHorizontal, X } from 'lucide-react';
+import { Slider } from '@/app/components/ui/slider';
 import { getCategorias, getEstilos, getColores } from '@/lib/api';
 import type { Categoria, Estilo, Color } from '@/lib/api';
 
@@ -100,40 +101,6 @@ export function FilterSidebar({ filters, setFilters, showCategorias = true }: Fi
 
   return (
     <aside style={{ width: 220, flexShrink: 0 }}>
-      <style>{`
-        .dual-range {
-          -webkit-appearance: none;
-          appearance: none;
-          background: transparent;
-          pointer-events: none;
-        }
-        .dual-range::-webkit-slider-thumb {
-          pointer-events: auto;
-          -webkit-appearance: none;
-          width: 16px;
-          height: 16px;
-          border-radius: 50%;
-          background: #7c3aed;
-          cursor: pointer;
-          border: 2px solid white;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-          margin-top: -6px; /* Ajuste vertical si fuera necesario en webkit */
-        }
-        .dual-range::-moz-range-thumb {
-          pointer-events: auto;
-          width: 16px;
-          height: 16px;
-          border-radius: 50%;
-          background: #7c3aed;
-          cursor: pointer;
-          border: 2px solid white;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-        }
-        .dual-range::-webkit-slider-runnable-track {
-          -webkit-appearance: none;
-          height: 4px;
-        }
-      `}</style>
       <div className="sticky" style={{ top: 80 }}>
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
@@ -311,47 +278,16 @@ export function FilterSidebar({ filters, setFilters, showCategorias = true }: Fi
                     />
                   </div>
                 </div>
-                <div className="relative h-6 mt-6">
-                  {/* Pista gris de fondo */}
-                  <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-1 bg-gray-200 rounded-full" />
-                  
-                  {/* Pista morada activa */}
-                  <div 
-                    className="absolute top-1/2 -translate-y-1/2 h-1 bg-[#7c3aed] rounded-full pointer-events-none"
-                    style={{
-                      left: `${((filters.precioMin ?? PRECIO_MIN) / PRECIO_MAX) * 100}%`,
-                      right: `${100 - ((filters.precioMax ?? PRECIO_MAX) / PRECIO_MAX) * 100}%`
+                <div className="mt-8 px-2">
+                  <Slider
+                    min={PRECIO_MIN}
+                    max={PRECIO_MAX}
+                    step={10}
+                    value={[filters.precioMin ?? PRECIO_MIN, filters.precioMax ?? PRECIO_MAX]}
+                    onValueChange={(values) => {
+                      setFilters({ ...filters, precioMin: values[0], precioMax: values[1] });
                     }}
-                  />
-
-                  {/* Input Min */}
-                  <input 
-                    type="range" 
-                    min={PRECIO_MIN} 
-                    max={PRECIO_MAX} 
-                    step={10} 
-                    value={filters.precioMin ?? PRECIO_MIN} 
-                    onChange={(e) => {
-                      const val = Math.min(Number(e.target.value), (filters.precioMax ?? PRECIO_MAX) - 10);
-                      setFilters({ ...filters, precioMin: val });
-                    }} 
-                    className="absolute w-full top-1/2 -translate-y-1/2 dual-range m-0 p-0" 
-                    style={{ zIndex: (filters.precioMin ?? PRECIO_MIN) > PRECIO_MAX - 50 ? 5 : 3 }} 
-                  />
-
-                  {/* Input Max */}
-                  <input 
-                    type="range" 
-                    min={PRECIO_MIN} 
-                    max={PRECIO_MAX} 
-                    step={10} 
-                    value={filters.precioMax ?? PRECIO_MAX} 
-                    onChange={(e) => {
-                      const val = Math.max(Number(e.target.value), (filters.precioMin ?? PRECIO_MIN) + 10);
-                      setFilters({ ...filters, precioMax: val });
-                    }} 
-                    className="absolute w-full top-1/2 -translate-y-1/2 dual-range m-0 p-0" 
-                    style={{ zIndex: 4 }} 
+                    className="[&_[data-slot=slider-track]]:bg-gray-200 [&_[data-slot=slider-track]]:h-1 [&_[data-slot=slider-range]]:bg-[#7c3aed] [&_[data-slot=slider-thumb]]:border-2 [&_[data-slot=slider-thumb]]:border-white [&_[data-slot=slider-thumb]]:bg-[#7c3aed] [&_[data-slot=slider-thumb]]:w-4 [&_[data-slot=slider-thumb]]:h-4"
                   />
                 </div>
               </div>

@@ -11,6 +11,11 @@ export function CatalogoPage() {
   const [productos, setProductos] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Pagination states
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRegistros, setTotalRegistros] = useState(0);
+  const ITEMS_PER_PAGE = 12;
 
   // ── 🎯 URL = fuente de verdad. Los filtros se derivan directamente de los searchParams ──
   const filters = {
@@ -22,6 +27,7 @@ export function CatalogoPage() {
     soloDisponibles: searchParams.get('stock') === 'true',
     precioMin: Number(searchParams.get('precioMin') ?? 0),
     precioMax: Number(searchParams.get('precioMax') ?? 500),
+    pagina: Number(searchParams.get('pagina') ?? 1),
   };
 
   const setFilters = (newFiltersOrFn: any) => {
@@ -39,6 +45,7 @@ export function CatalogoPage() {
     if (resolvedFilters.soloDisponibles) urlParams.push(['stock', 'true']);
     if (resolvedFilters.precioMin) urlParams.push(['precioMin', String(resolvedFilters.precioMin)]);
     if (resolvedFilters.precioMax !== undefined && resolvedFilters.precioMax !== 500) urlParams.push(['precioMax', String(resolvedFilters.precioMax)]);
+    if (resolvedFilters.pagina && resolvedFilters.pagina > 1) urlParams.push(['pagina', String(resolvedFilters.pagina)]);
     
     setSearchParams(urlParams, { replace: true });
   };
@@ -63,11 +70,15 @@ export function CatalogoPage() {
       stock: filters.soloDisponibles || undefined,
       precioMin: filters.precioMin,
       precioMax: filters.precioMax,
+      pagina: filters.pagina,
+      registrosPorPagina: ITEMS_PER_PAGE
     })
       .then((res) => {
         if (active) {
-          console.log('👉 [Wayback C# Catalogo Sync]:', res.length, 'prendas recibidas.');
-          setProductos(res ?? []);
+          console.log('👉 [Wayback C# Catalogo Sync]:', res.elementos?.length || 0, 'prendas recibidas.');
+          setProductos(res.elementos ?? []);
+          setTotalPages(res.totalPaginas || 1);
+          setTotalRegistros(res.totalRegistros || 0);
         }
       })
       .catch((err) => console.error('Error conectando a la API:', err))
@@ -106,6 +117,29 @@ export function CatalogoPage() {
             {productos.map((prod) => (
               <ProductCard key={prod.id} product={prod} />
             ))}
+          </div>
+        )}
+        
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-8 pt-4 border-t border-slate-100">
+            <button 
+              onClick={() => setFilters({ ...filters, pagina: Math.max(1, filters.pagina - 1) })}
+              disabled={filters.pagina === 1}
+              className="flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-[#7c3aed] disabled:opacity-40 disabled:hover:text-slate-600 transition-colors bg-white px-3 py-1.5 rounded-md border border-slate-200"
+            >
+              Anterior
+            </button>
+            <span className="text-xs text-slate-500 font-medium">
+              Página {filters.pagina} de {totalPages} ({totalRegistros} productos)
+            </span>
+            <button 
+              onClick={() => setFilters({ ...filters, pagina: Math.min(totalPages, filters.pagina + 1) })}
+              disabled={filters.pagina === totalPages}
+              className="flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-[#7c3aed] disabled:opacity-40 disabled:hover:text-slate-600 transition-colors bg-white px-3 py-1.5 rounded-md border border-slate-200"
+            >
+              Siguiente
+            </button>
           </div>
         )}
 

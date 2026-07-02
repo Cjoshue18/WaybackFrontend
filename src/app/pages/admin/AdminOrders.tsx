@@ -40,6 +40,12 @@ export function AdminOrders() {
   const [search, setSearch] = useState('');
   const [filterEst, setFilterEst] = useState('');
 
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRegistros, setTotalRegistros] = useState(0);
+  const ITEMS_PER_PAGE = 10;
+
   const [viewingId, setViewingId] = useState<number | null>(null);
   const [detalle, setDetalle] = useState<PedidoAdminDetalle | null>(null);
   const [detalleLoading, setDetalleLoading] = useState(false);
@@ -47,10 +53,12 @@ export function AdminOrders() {
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
-    const data = await getPedidosAdmin();
-    setOrders(data);
+    const data = await getPedidosAdmin(page, ITEMS_PER_PAGE);
+    setOrders(data.elementos || []);
+    setTotalPages(data.totalPaginas || 1);
+    setTotalRegistros(data.totalRegistros || 0);
     setLoading(false);
-  }, []);
+  }, [page]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
@@ -187,6 +195,31 @@ export function AdminOrders() {
               })}
             </tbody>
           </table>
+        )}
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
+            <button 
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-violet-600 disabled:opacity-40 disabled:hover:text-slate-600 transition-colors bg-white px-3 py-1.5 rounded-md border border-slate-200"
+            >
+              <ChevronDown style={{ transform: 'rotate(90deg)' }} size={14} />
+              Anterior
+            </button>
+            <span className="text-xs text-slate-500 font-medium">
+              Página {page} de {totalPages} ({totalRegistros} pedidos en total)
+            </span>
+            <button 
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-violet-600 disabled:opacity-40 disabled:hover:text-slate-600 transition-colors bg-white px-3 py-1.5 rounded-md border border-slate-200"
+            >
+              Siguiente
+              <ChevronDown style={{ transform: 'rotate(-90deg)' }} size={14} />
+            </button>
+          </div>
         )}
       </div>
 

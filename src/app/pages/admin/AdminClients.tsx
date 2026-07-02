@@ -31,6 +31,12 @@ export function AdminClients() {
   const [saving,   setSaving]   = useState(false);
   const [error,    setError]    = useState<string | null>(null);
 
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRegistros, setTotalRegistros] = useState(0);
+  const ITEMS_PER_PAGE = 10;
+
   const filtered = clients.filter((c) =>
     `${c.cli_nombre} ${c.cli_apellido} ${c.cli_email}`.toLowerCase().includes(search.toLowerCase())
   );
@@ -39,8 +45,10 @@ export function AdminClients() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getClientes();
-      setClients(data ?? []);
+      const data = await getClientes(page, ITEMS_PER_PAGE);
+      setClients(data.elementos ?? []);
+      setTotalPages(data.totalPaginas || 1);
+      setTotalRegistros(data.totalRegistros || 0);
     } catch (err) {
       console.error('❌ Error cargando clientes:', err);
       setError('No se pudieron cargar los clientes. Verifica que hayas iniciado sesión como Administrador.');
@@ -49,7 +57,7 @@ export function AdminClients() {
     }
   };
 
-  useEffect(() => { loadClients(); }, []);
+  useEffect(() => { loadClients(); }, [page]);
 
   // Solo se abre en modo edición — no existe modo "crear"
   const openEdit = (c: Cliente) => {
@@ -181,6 +189,29 @@ export function AdminClients() {
               ))}
             </tbody>
           </table>
+        )}
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100 p-5">
+            <button 
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-[#7c3aed] disabled:opacity-40 disabled:hover:text-slate-600 transition-colors bg-white px-3 py-1.5 rounded-md border border-slate-200"
+            >
+              Anterior
+            </button>
+            <span className="text-xs text-slate-500 font-medium">
+              Página {page} de {totalPages} ({totalRegistros} clientes en total)
+            </span>
+            <button 
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-[#7c3aed] disabled:opacity-40 disabled:hover:text-slate-600 transition-colors bg-white px-3 py-1.5 rounded-md border border-slate-200"
+            >
+              Siguiente
+            </button>
+          </div>
         )}
       </div>
 

@@ -61,6 +61,12 @@ export function CategoryPage() {
   const [filters, setFilters] = useState<ProductFilters>(DEFAULT_FILTERS);
   const [sort, setSort]       = useState<SortOption>('recientes');
 
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRegistros, setTotalRegistros] = useState(0);
+  const ITEMS_PER_PAGE = 12;
+
   // Se resuelve de forma segura el texto y el ID numérico que exige el backend
   const urlKey = categoryId ? categoryId.toLowerCase().trim() : '';
   const resolvedCategory = CATEGORY_MAP[urlKey];
@@ -75,11 +81,13 @@ export function CategoryPage() {
     let active = true;
     setLoading(true);
 
-    // � CORRECCIÓN: Invocamos al nuevo método pasando el ID unificado como un objeto filtro
-    getProductos({ categoria: [apiId] })
+    //  CORRECCIÓN: Invocamos al nuevo método pasando el ID unificado como un objeto filtro
+    getProductos({ categoria: [apiId], pagina: page, registrosPorPagina: ITEMS_PER_PAGE })
       .then((data) => {
         if (active) {
-          setProducts(data);
+          setProducts(data.elementos ?? []);
+          setTotalPages(data.totalPaginas || 1);
+          setTotalRegistros(data.totalRegistros || 0);
         }
       })
       .catch((err) => console.error("Error al sincronizar categoría:", err))
@@ -88,7 +96,7 @@ export function CategoryPage() {
       });
 
     return () => { active = false; };
-  }, [apiId]); 
+  }, [apiId, page]); 
 
   // Filtrado en tiempo real
   const filteredProducts = products.filter((p) => {
@@ -162,6 +170,29 @@ export function CategoryPage() {
                 ))
               )}
             </div>
+            
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-8 pt-4 border-t border-slate-100">
+                <button 
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-[#7c3aed] disabled:opacity-40 disabled:hover:text-slate-600 transition-colors bg-white px-3 py-1.5 rounded-md border border-slate-200"
+                >
+                  Anterior
+                </button>
+                <span className="text-xs text-slate-500 font-medium">
+                  Página {page} de {totalPages} ({totalRegistros} productos)
+                </span>
+                <button 
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-[#7c3aed] disabled:opacity-40 disabled:hover:text-slate-600 transition-colors bg-white px-3 py-1.5 rounded-md border border-slate-200"
+                >
+                  Siguiente
+                </button>
+              </div>
+            )}
 
             {/* Aviso dinámico vacío */}
             {!loading && products.length === 0 && (

@@ -30,22 +30,23 @@ export function AdminDashboard() {
     async function fetchDashboardData() {
       try {
         // Disparamos consultas paralelas a Render para optimizar tiempos de carga
+        // Solicitamos solo 1 registro para traer la metadata total (optimización)
         const [listaProductos, listaClientes, listaCategorias, listaPedidos, listaIngresos] = await Promise.all([
-          getProductos().catch(() => []),
-          getClientes().catch(() => []),
+          getProductos({ pagina: 1, registrosPorPagina: 1 }).catch(() => ({ totalRegistros: 0, elementos: [] }) as any),
+          getClientes(1, 1).catch(() => ({ totalRegistros: 0, elementos: [] }) as any),
           getCategorias().catch(() => []),
-          getPedidosAdmin().catch(() => []),
+          getPedidosAdmin(1, 10).catch(() => ({ totalRegistros: 0, elementos: [] }) as any),
           getIngresosSemanales().catch(() => []),
         ]);
 
         if (active) {
           setMetrics({
-            productosCount: listaProductos.length,
-            clientesCount: listaClientes.length,
+            productosCount: listaProductos.totalRegistros || 0,
+            clientesCount: listaClientes.totalRegistros || 0,
             categoriasCount: listaCategorias.length || 11, // Fallback a las 11 estáticas
-            pedidosCount: listaPedidos.length,
+            pedidosCount: listaPedidos.totalRegistros || 0,
           });
-          setAllOrders(listaPedidos);
+          setAllOrders(listaPedidos.elementos || []);
           setIngresos(listaIngresos);
 
           // Si las consultas respondieron bien, el sistema está 100% operativo
@@ -64,6 +65,19 @@ export function AdminDashboard() {
     fetchDashboardData();
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    async function fetchOrdersPage() {
+      try {
+        const result = await getPedidosAdmin(page, ITEMS_PER_PAGE);
+        setAllOrders(result.elementos || []);
+      } catch (e) {}
+    }
+    // Only fetch if not the first render, because the first render is handled by the big Promise.all
+    if (page > 1 || allOrders.length === 0) {
+        fetchOrdersPage();
+    }
+  }, [page]);
 
   // Estructura visual de las tarjetas (Mapeada dinámicamente desde el estado)
   const statCards = [
@@ -178,7 +192,7 @@ export function AdminDashboard() {
         ) : (
           <>
             <div className="space-y-4 mt-4">
-              {allOrders.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE).map((order) => (
+              {allOrders.map((order) => (
                 <div key={order.pedId} className="flex items-center justify-between p-3 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors">
                   <div>
                     <p className="text-sm font-semibold text-slate-900">Pedido #{order.pedId}</p>
@@ -192,7 +206,7 @@ export function AdminDashboard() {
               ))}
             </div>
             
-            {Math.ceil(allOrders.length / ITEMS_PER_PAGE) > 1 && (
+            {Math.ceil(metrics.pedidosCount / ITEMS_PER_PAGE) > 1 && (
               <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
                 <button 
                   onClick={() => setPage(p => Math.max(1, p - 1))}
@@ -203,11 +217,11 @@ export function AdminDashboard() {
                   Anterior
                 </button>
                 <span className="text-xs text-slate-400 font-medium">
-                  Página {page} de {Math.ceil(allOrders.length / ITEMS_PER_PAGE)}
+                  Página {page} de {Math.ceil(metrics.pedidosCount / ITEMS_PER_PAGE)}
                 </span>
                 <button 
-                  onClick={() => setPage(p => Math.min(Math.ceil(allOrders.length / ITEMS_PER_PAGE), p + 1))}
-                  disabled={page === Math.ceil(allOrders.length / ITEMS_PER_PAGE)}
+                  onClick={() => setPage(p => Math.min(Math.ceil(metrics.pedidosCount / ITEMS_PER_PAGE), p + 1))}
+                  disabled={page === Math.ceil(metrics.pedidosCount / ITEMS_PER_PAGE)}
                   className="flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-violet-600 disabled:opacity-40 disabled:hover:text-slate-600 transition-colors"
                 >
                   Siguiente

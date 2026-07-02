@@ -38,9 +38,9 @@ export function HomePage() {
     let active = true;
     setLoading(true);
 
-    getProductos()
+    getProductos({ pagina: 1, registrosPorPagina: SELECCION_LIMIT })
       .then((res) => {
-        if (active) setProductos((res ?? []).slice(0, SELECCION_LIMIT));
+        if (active) setProductos((res.elementos ?? []));
       })
       .catch((err) => console.error('Error cargando la selección Para ti:', err))
       .finally(() => {

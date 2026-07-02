@@ -431,8 +431,12 @@ export function UserProfilePage() {
   const [pedidos, setPedidos] = useState<PedidoHistorial[]>([]);
   const [pedidosLoading, setPedidosLoading] = useState(true);
   
+  const [pedidosPage, setPedidosPage] = useState(1);
+  const [pedidosTotalPages, setPedidosTotalPages] = useState(1);
+  const [pedidosTotalRegistros, setPedidosTotalRegistros] = useState(0);
+  const PEDIDOS_PER_PAGE = 5;
+  
   const [showAllDirecciones, setShowAllDirecciones] = useState(false);
-  const [showAllPedidos, setShowAllPedidos] = useState(false);
 
   const [viewingOrderId, setViewingOrderId] = useState<number | null>(null);
   const [orderDetalle, setOrderDetalle] = useState<PedidoDetalleCliente | null>(null);
@@ -456,9 +460,12 @@ export function UserProfilePage() {
 
   useEffect(() => {
     async function fetchPedidos() {
+      setPedidosLoading(true);
       try {
-        const data = await getMisPedidos();
-        setPedidos(data);
+        const data = await getMisPedidos(pedidosPage, PEDIDOS_PER_PAGE);
+        setPedidos(data.elementos ?? []);
+        setPedidosTotalPages(data.totalPaginas || 1);
+        setPedidosTotalRegistros(data.totalRegistros || 0);
       } catch (err) {
         console.error('Error fetching pedidos', err);
       } finally {
@@ -468,7 +475,7 @@ export function UserProfilePage() {
     if (user) {
       fetchPedidos();
     }
-  }, [user]);
+  }, [user, pedidosPage]);
 
   if (!user) return <ProfileSkeleton />;
 
@@ -773,7 +780,7 @@ export function UserProfilePage() {
                   </p>
                 ) : (
                   <div className="space-y-4">
-                    {(showAllPedidos ? pedidos : pedidos.slice(0, 3)).map((order) => {
+                    {pedidos.map((order) => {
                       const date = new Date(order.fechaCompra).toLocaleDateString('es-PE', {
                         day: 'numeric', month: 'short', year: 'numeric'
                       });
@@ -803,13 +810,28 @@ export function UserProfilePage() {
                         </div>
                       );
                     })}
-                    {pedidos.length > 3 && (
-                      <button
-                        onClick={() => setShowAllPedidos(!showAllPedidos)}
-                        className="w-full mt-4 py-2 border border-dashed border-[#7c3aed]/30 text-[#7c3aed] text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#7c3aed]/5 transition-colors"
-                      >
-                        {showAllPedidos ? 'Mostrar menos' : `Ver todos mis pedidos (${pedidos.length})`}
-                      </button>
+                    
+                    {/* Pagination Controls */}
+                    {pedidosTotalPages > 1 && (
+                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
+                        <button 
+                          onClick={() => setPedidosPage(p => Math.max(1, p - 1))}
+                          disabled={pedidosPage === 1}
+                          className="flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-[#7c3aed] disabled:opacity-40 disabled:hover:text-slate-600 transition-colors bg-white px-3 py-1.5 rounded-md border border-slate-200"
+                        >
+                          Anterior
+                        </button>
+                        <span className="text-xs text-slate-500 font-medium">
+                          Página {pedidosPage} de {pedidosTotalPages} ({pedidosTotalRegistros} pedidos)
+                        </span>
+                        <button 
+                          onClick={() => setPedidosPage(p => Math.min(pedidosTotalPages, p + 1))}
+                          disabled={pedidosPage === pedidosTotalPages}
+                          className="flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-[#7c3aed] disabled:opacity-40 disabled:hover:text-slate-600 transition-colors bg-white px-3 py-1.5 rounded-md border border-slate-200"
+                        >
+                          Siguiente
+                        </button>
+                      </div>
                     )}
                   </div>
                 )}

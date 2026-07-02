@@ -2,6 +2,14 @@
 export const API_BASE = 'https://y2kvault-backend.onrender.com';
 
 // ── INTERFACES EXISTENTES ──
+export interface RespuestaPaginada<T> {
+  totalRegistros: number;
+  paginaActual: number;
+  registrosPorPagina: number;
+  totalPaginas: number;
+  elementos: T[];
+}
+
 export interface CategoriaApi {
   catID?: number; cat_id?: number;
   catNombre?: string; cat_nombre?: string;
@@ -155,6 +163,8 @@ export interface FilterOptions {
   stock?: boolean;
   precioMin?: number;
   precioMax?: number;
+  pagina?: number;
+  registrosPorPagina?: number;
 }
 
 // [P5 FIX] Interfaces para el CRUD de Direcciones
@@ -494,10 +504,31 @@ export async function deleteEstilo(id: number): Promise<void> {
 }
 
 // ── MÉTODOS DE CLIENTES ──
-export async function getClientes(): Promise<Cliente[]> {
-  const url = `${API_BASE}/api/admin/reportes/clientes`;
-  const data = await fetchJson<any[]>(url);
-  return Array.isArray(data) ? data.map(parseCliente) : [];
+export async function getClientes(pagina: number = 1, registrosPorPagina: number = 10): Promise<RespuestaPaginada<Cliente>> {
+  const url = `${API_BASE}/api/admin/reportes/clientes?pagina=${pagina}&registrosPorPagina=${registrosPorPagina}`;
+  const data = await fetchJson<any>(url);
+  
+  if (data && data.elementos) {
+    return {
+      totalRegistros: data.totalRegistros || 0,
+      paginaActual: data.paginaActual || 1,
+      registrosPorPagina: data.registrosPorPagina || 10,
+      totalPaginas: data.totalPaginas || 1,
+      elementos: Array.isArray(data.elementos) ? data.elementos.map(parseCliente) : []
+    };
+  }
+  
+  if (Array.isArray(data)) {
+      return {
+          totalRegistros: data.length,
+          paginaActual: 1,
+          registrosPorPagina: data.length,
+          totalPaginas: 1,
+          elementos: data.map(parseCliente)
+      };
+  }
+  
+  return { totalRegistros: 0, paginaActual: 1, registrosPorPagina: 10, totalPaginas: 1, elementos: [] };
 }
 
 export async function updateCliente(id: number, cliente: Partial<Cliente>): Promise<Cliente> {
@@ -575,7 +606,7 @@ export async function deleteDireccionApi(id: number): Promise<void> {
 // [P1 FIX] Eliminada la declaración duplicada del módulo; solo existe dentro de getProductos
 
 // ── MÉTODO DE PRODUCTOS ──
-export async function getProductos(filtros?: FilterOptions): Promise<Product[]> {
+export async function getProductos(filtros?: FilterOptions): Promise<RespuestaPaginada<Product>> {
   try {
     const url = new URL(`${API_BASE}/api/productos`);
 
@@ -594,6 +625,9 @@ export async function getProductos(filtros?: FilterOptions): Promise<Product[]> 
     };
 
     if (filtros) {
+      if (filtros.pagina) url.searchParams.append('pagina', filtros.pagina.toString());
+      if (filtros.registrosPorPagina) url.searchParams.append('registrosPorPagina', filtros.registrosPorPagina.toString());
+      
       filtros.categoria?.forEach((cat) => {
         if (cat === undefined || cat === '') return;
         const catKey = String(cat).toLowerCase().trim();
@@ -628,15 +662,38 @@ export async function getProductos(filtros?: FilterOptions): Promise<Product[]> 
     }
 
     console.log(`📡 [Wayback API Request]: ${url.pathname}${url.search}`);
-    const data = await fetchJson<any[]>(url.toString());
-    return Array.isArray(data) ? data.map(parseProducto) : [];
+    const data = await fetchJson<any>(url.toString());
+    
+    // Si viene la paginación del backend
+    if (data && data.elementos) {
+      return {
+        totalRegistros: data.totalRegistros || 0,
+        paginaActual: data.paginaActual || 1,
+        registrosPorPagina: data.registrosPorPagina || 10,
+        totalPaginas: data.totalPaginas || 1,
+        elementos: Array.isArray(data.elementos) ? data.elementos.map(parseProducto) : []
+      };
+    }
+    
+    // Fallback por si el backend sigue devolviendo un array (durante la transición)
+    if (Array.isArray(data)) {
+        return {
+            totalRegistros: data.length,
+            paginaActual: 1,
+            registrosPorPagina: data.length,
+            totalPaginas: 1,
+            elementos: data.map(parseProducto)
+        };
+    }
+    
+    return { totalRegistros: 0, paginaActual: 1, registrosPorPagina: 10, totalPaginas: 1, elementos: [] };
   } catch (error) {
     console.error('Error crítico en la consulta unificada de productos:', error);
-    return [];
+    return { totalRegistros: 0, paginaActual: 1, registrosPorPagina: 10, totalPaginas: 1, elementos: [] };
   }
 }
 
-export async function getProductosPorCategoria(categoryId: number | string): Promise<Product[]> {
+export async function getProductosPorCategoria(categoryId: number | string): Promise<RespuestaPaginada<Product>> {
   return getProductos({ categoria: [categoryId] });
 }
 
@@ -685,18 +742,47 @@ export interface PedidoHistorial {
   fechaCompra: string;
 }
 
-export async function getMisPedidos(): Promise<PedidoHistorial[]> {
+export async function getMisPedidos(pagina: number = 1, registrosPorPagina: number = 10): Promise<RespuestaPaginada<PedidoHistorial>> {
   try {
-    const data = await fetchJson<any[]>(`${API_BASE}/api/mis-pedidos`);
-    return Array.isArray(data) ? data.map(p => ({
-      id: Number(p.PedId ?? p.pedId ?? p.ped_id ?? 0),
-      estado: String(p.PedEstado ?? p.pedEstado ?? p.ped_estado ?? 'Pendiente'),
-      total: Number(p.PedTotal ?? p.pedTotal ?? p.ped_total ?? 0),
-      fechaCompra: String(p.PedFechaCompra ?? p.pedFechaCompra ?? p.ped_fecha_compra ?? ''),
-    })) : [];
+    const data = await fetchJson<any>(`${API_BASE}/api/mis-pedidos?pagina=${pagina}&registrosPorPagina=${registrosPorPagina}`);
+    
+    // Si viene la paginación del backend
+    if (data && data.elementos) {
+      return {
+        totalRegistros: data.totalRegistros || 0,
+        paginaActual: data.paginaActual || 1,
+        registrosPorPagina: data.registrosPorPagina || 10,
+        totalPaginas: data.totalPaginas || 1,
+        elementos: Array.isArray(data.elementos) ? data.elementos.map((p: any) => ({
+          id: Number(p.PedId ?? p.pedId ?? p.ped_id ?? 0),
+          estado: String(p.PedEstado ?? p.pedEstado ?? p.ped_estado ?? 'Pendiente'),
+          total: Number(p.PedTotal ?? p.pedTotal ?? p.ped_total ?? 0),
+          fechaCompra: String(p.PedFechaCompra ?? p.pedFechaCompra ?? p.ped_fecha_compra ?? ''),
+        })) : []
+      };
+    }
+    
+    // Fallback por si el backend sigue devolviendo un array (durante la transición)
+    if (Array.isArray(data)) {
+        const elementos = data.map((p: any) => ({
+          id: Number(p.PedId ?? p.pedId ?? p.ped_id ?? 0),
+          estado: String(p.PedEstado ?? p.pedEstado ?? p.ped_estado ?? 'Pendiente'),
+          total: Number(p.PedTotal ?? p.pedTotal ?? p.ped_total ?? 0),
+          fechaCompra: String(p.PedFechaCompra ?? p.pedFechaCompra ?? p.ped_fecha_compra ?? ''),
+        }));
+        return {
+            totalRegistros: elementos.length,
+            paginaActual: 1,
+            registrosPorPagina: elementos.length,
+            totalPaginas: 1,
+            elementos: elementos
+        };
+    }
+    
+    return { totalRegistros: 0, paginaActual: 1, registrosPorPagina: 10, totalPaginas: 1, elementos: [] };
   } catch (error) {
     console.error('Error al obtener pedidos:', error);
-    return [];
+    return { totalRegistros: 0, paginaActual: 1, registrosPorPagina: 10, totalPaginas: 1, elementos: [] };
   }
 }
 
@@ -837,20 +923,25 @@ function parsePedidoAdminDetalle(item: any): PedidoAdminDetalle {
   if (item && typeof item === 'object') {
     Object.keys(item).forEach((key) => { obj[key.toLowerCase()] = item[key]; });
   }
-  const rawItems = Array.isArray(obj['items']) ? obj['items'] : [];
+  const rawItems = Array.isArray(obj['detalles']) ? obj['detalles'] : (Array.isArray(obj['items']) ? obj['items'] : []);
   const itemsDetalle: PedidoAdminItem[] = rawItems
     .filter((v: any) => v && typeof v === 'object')
-    .map((v: any) => ({
-      varId: Number(v.varId ?? v.var_id ?? 0),
-      nombre: String(v.proNombre ?? v.pro_nombre ?? v.nombre ?? v.producto ?? ''),
-      talla: String(v.varTalla ?? v.var_talla ?? v.talla ?? ''),
-      color: String(v.colorNombre ?? v.color_nombre ?? v.color ?? ''),
-      cantidad: Number(v.cantidad ?? v.pedDetCantidad ?? v.ped_det_cantidad ?? 0),
-      precio: Number(v.precio ?? v.pedDetPrecio ?? v.ped_det_precio ?? 0),
-    }));
+    .map((rawV: any) => {
+      const v: Record<string, any> = {};
+      Object.keys(rawV).forEach((key) => { v[key.toLowerCase()] = rawV[key]; });
+      return {
+        varId: Number(v['varid'] ?? v['var_id'] ?? 0),
+        nombre: String(v['pronombre'] ?? v['pro_nombre'] ?? v['nombre'] ?? v['producto'] ?? ''),
+        talla: String(v['vartalla'] ?? v['var_talla'] ?? v['talla'] ?? ''),
+        color: String(v['colornombre'] ?? v['color_nombre'] ?? v['color'] ?? ''),
+        cantidad: Number(v['detpedcantidad'] ?? v['det_ped_cantidad'] ?? v['cantidad'] ?? 0),
+        precio: Number(v['detpedpreciounitario'] ?? v['det_ped_precio_unitario'] ?? v['precio'] ?? v['peddetprecio'] ?? 0),
+      };
+    });
 
   return {
     ...base,
+    items: itemsDetalle.reduce((sum, v) => sum + v.cantidad, 0),
     numeroYape: String(obj['numeroyape'] ?? obj['numero_yape'] ?? ''),
     codigoAprobacion: String(obj['codigoaprobacion'] ?? obj['codigo_aprobacion'] ?? ''),
     direccionEnvio: String(obj['direccionenvio'] ?? obj['dircalle'] ?? obj['direccion'] ?? ''),
@@ -859,13 +950,36 @@ function parsePedidoAdminDetalle(item: any): PedidoAdminDetalle {
 }
 
 // ── MÉTODOS DE ADMIN (PEDIDOS) ──
-export async function getPedidosAdmin(): Promise<PedidoAdmin[]> {
+export async function getPedidosAdmin(pagina: number = 1, registrosPorPagina: number = 10): Promise<RespuestaPaginada<PedidoAdmin>> {
   try {
-    const data = await fetchJson<any[]>(`${API_BASE}/api/admin/reportes/pedidos`);
-    return Array.isArray(data) ? data.map(parsePedidoAdmin) : [];
+    const data = await fetchJson<any>(`${API_BASE}/api/admin/reportes/pedidos?pagina=${pagina}&registrosPorPagina=${registrosPorPagina}`);
+    
+    // Si viene la paginación del backend
+    if (data && data.elementos) {
+      return {
+        totalRegistros: data.totalRegistros || 0,
+        paginaActual: data.paginaActual || 1,
+        registrosPorPagina: data.registrosPorPagina || 10,
+        totalPaginas: data.totalPaginas || 1,
+        elementos: Array.isArray(data.elementos) ? data.elementos.map(parsePedidoAdmin) : []
+      };
+    }
+    
+    // Fallback
+    if (Array.isArray(data)) {
+        return {
+            totalRegistros: data.length,
+            paginaActual: 1,
+            registrosPorPagina: data.length,
+            totalPaginas: 1,
+            elementos: data.map(parsePedidoAdmin)
+        };
+    }
+    
+    return { totalRegistros: 0, paginaActual: 1, registrosPorPagina: 10, totalPaginas: 1, elementos: [] };
   } catch (error) {
     console.error('Error al listar pedidos (admin):', error);
-    return [];
+    return { totalRegistros: 0, paginaActual: 1, registrosPorPagina: 10, totalPaginas: 1, elementos: [] };
   }
 }
 

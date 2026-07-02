@@ -2,6 +2,20 @@
 
 Este repositorio contiene el frontend desarrollado en React + Vite para la tienda Wayback. Está diseñado para conectarse a una API backend construida en .NET.
 
+## Agradecimientos y Créditos
+
+- Repo original: [klownika](https://github.com/klownika)
+- Refactorizado, expandido y modernizado por: Joshue (@Cjoshue18)
+
+Principales mejoras realizadas:
+- Migración de datos estáticos a integración real y persistente con la API REST en .NET.
+- Paginación global y optimización de rendimiento desde el lado del servidor.
+- Implementación de un Panel de Administración completo (Gestión de órdenes, clientes y productos).
+- Refactorización profunda de UI/UX, integración de mapas y mejoras en el flujo de carrito.
+- Estabilización del sistema de autenticación, sesiones mediante JWT y Context API.
+
+Para más detalles, consulta el documento completo de cambios: [[MEJORAS.md]](file:///C:/Users/joshu/Desktop/wbdas/FEWayBack/MEJORAS.md).
+
 ## Requisitos Previos
 
 - [Node.js](https://nodejs.org/) (versión 18 o superior recomendada)
@@ -11,7 +25,7 @@ Este repositorio contiene el frontend desarrollado en React + Vite para la tiend
 
 ```bash
 # 1. Clonar el repositorio
-git clone https://github.com/Cjoshue18/FEWayBack.git
+git clone <url-repositorio>
 cd FEWayBack
 
 # 2. Instalar las dependencias
